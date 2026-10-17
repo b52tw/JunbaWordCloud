@@ -4,12 +4,21 @@ import {RoomCore,UserError,csv} from './core.mjs';
 const json=(v,status=200)=>new Response(JSON.stringify(v),{status,headers:{'Content-Type':'application/json; charset=utf-8','Cache-Control':'no-store'}});
 const digest=async s=>[...new Uint8Array(await crypto.subtle.digest('SHA-256',new TextEncoder().encode(s)))].map(b=>b.toString(16).padStart(2,'0')).join('');
 const token=()=>crypto.randomUUID().replaceAll('-','');
+function setupProblem(env){
+ if(typeof env.SETUP_KEY!=='string'||!env.SETUP_KEY)return {code:'SETUP_KEY_MISSING',error:'網站尚未讀到活動管理碼。請在 Cloudflare 的正式（生產）環境新增秘密 SETUP_KEY，並儲存部署。'};
+ if(env.SETUP_KEY.length<24)return {code:'SETUP_KEY_TOO_SHORT',error:'Cloudflare 裡儲存的活動管理碼不足 24 個字元。請編輯秘密 SETUP_KEY 的值，改為至少 24 個英數字元，再儲存部署。'};
+ return null;
+}
 async function body(request){const s=await request.text();if(s.length>65536)throw new UserError('資料過大',413);try{return JSON.parse(s)}catch{throw new UserError('資料格式不正確')}}
 function secure(response,url){if(response.status===101)return response;const r=new Response(response.body,response);r.headers.set('X-Content-Type-Options','nosniff');r.headers.set('Referrer-Policy','no-referrer');r.headers.set('X-Frame-Options','DENY');r.headers.set('Content-Security-Policy',"default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self'; connect-src 'self' "+url.origin.replace('https:','wss:').replace('http:','ws:')+"; object-src 'none'; base-uri 'none'; frame-ancestors 'none'");return r}
 export default{async fetch(request,env){const url=new URL(request.url);try{
  if(request.method==='POST'&&request.headers.get('Origin')&&request.headers.get('Origin')!==url.origin)throw new UserError('請從本活動頁面操作',403);
+ if(url.pathname==='/api/setup-status'&&request.method==='GET'){
+  const problem=setupProblem(env);
+  return secure(json(problem?{ready:false,...problem}:{ready:true}),url);
+ }
  if(url.pathname==='/api/new'&&request.method==='POST'){
-  if(!env.SETUP_KEY||env.SETUP_KEY.length<24)throw new UserError('尚未設定活動管理碼，請依架設說明完成設定',503);
+  const problem=setupProblem(env);if(problem)return secure(json(problem,503),url);
   if(await digest(request.headers.get('Authorization')||'')!==await digest('Bearer '+env.SETUP_KEY))throw new UserError('活動管理碼不正確',403);
   const room=token().slice(0,24),adminKey=token(),stub=env.ROOMS.get(env.ROOMS.idFromName(room));
   await stub.initialize(await digest(adminKey));
