@@ -103,7 +103,7 @@ async function loadJoin(){
  }catch{}
 }
 if(mode==='host'){
- if(!key){toast('主持台憑證已失效。請重新開啟 EXE，再使用自動開啟的主持台。');document.querySelectorAll('#host button,#host select,#host textarea').forEach(e=>e.disabled=true)}
+ if(!key){toast(IS_CLOUD?'請使用先前保存的完整主持連結開啟，或掃描主持人專用 QR Code。':'主持台憑證已失效。請重新開啟 EXE，再使用自動開啟的主持台。');document.querySelectorAll('#host button,#host select,#host textarea').forEach(e=>e.disabled=true)}
  async function loadConfig(){
   try{config=await(await api('/api/admin/config',{admin:true})).json();renderQuestionBank();link=config.shortJoin||config.join;$('#network').replaceChildren();config.links.forEach(l=>{const o=document.createElement('option');o.value=l.split('/join?')[0];o.textContent=l.split('/join?')[0];o.selected=l===config.join;$('#network').append(o)});$('#hostQR').src=API_ROOT+'/qr.png?v='+Date.now();$('#testJoin').href=link;$('#dataNote').textContent=IS_CLOUD?'結果自動儲存在活動帳號。':'自動儲存：'+config.dataPath;$('#networkWarning').textContent=IS_CLOUD?'線上活動：可使用各自的 Wi-Fi 或 4G／5G。':link.includes('127.0.0.1')?'目前只有本機網址，手機無法使用。請先將筆電連上學校 Wi-Fi 或手機熱點，再按「重新偵測網路」。':'請確認這是實際使用的 Wi-Fi 網址。';}
   catch(e){toast(e.message)}
