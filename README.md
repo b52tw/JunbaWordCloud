@@ -12,6 +12,16 @@
 
 ## 在您自己的瀏覽器發布
 
+### 固定參加短網址
+
+本次活動的固定參加入口為 **https://junba-wordcloud.b52tw-chen.workers.dev/join**。可直接分享給參加者；此連結只有投稿與讚同功能。主持連結仍須另外私下保存。
+
+`wrangler.jsonc` 的公開變數 `PUBLIC_JOIN_ROOM` 指向此活動 ID（不是管理碼）。主持台「複製網址」與投影 QR Code 會使用這個短網址；原有長網址與 QR Code 仍可使用。換題、清空及程式更新不會讓固定入口到期。新建另一場活動不會自動改變固定入口，以免已分享的連結突然指向不同活動。
+
+此入口沒有設定到期時間，但仍需維持 Cloudflare 帳號、Worker 網址與活動資料。若刪除網站、改名或停止雲端服務，無法保證繼續使用。將專案部署到其他帳號時，請刪除或改設 `PUBLIC_JOIN_ROOM` 為該帳號已建立的活動 ID。
+
+### 發布服務
+
 請在您已登入 Cloudflare 的 Chrome／Edge／Safari 操作，不必登入 ChatGPT 的雲端瀏覽器。
 
 [![Deploy to Cloudflare](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/b52tw/JunbaWordCloud)

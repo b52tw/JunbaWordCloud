@@ -1,6 +1,7 @@
 'use strict';
 const $=s=>document.querySelector(s);
-const route=location.pathname;const match=route.match(/^\/r\/([a-z0-9]{12,40})(?:\/|$)/);const API_ROOT=match?'/r/'+match[1]:'';const IS_CLOUD=!!match;
+const route=location.pathname.replace(/\/$/,'');const match=route.match(/^\/r\/([a-z0-9]{12,40})(?:\/|$)/);const cloudRoom=match?match[1]:$('meta[name="junba-room"]')?.content||'';const API_ROOT=cloudRoom?'/r/'+cloudRoom:'';const IS_CLOUD=!!cloudRoom;
+const participantRoom=new URLSearchParams(location.search).get('room')||cloudRoom;
 const mode=route.endsWith('/join')?'join':route.endsWith('/screen')?'screen':'host';
 $('#'+mode).hidden=false;
 const auth=new URLSearchParams(location.hash.slice(1)).get('key');
@@ -53,7 +54,7 @@ function renderEndorsements(force=false){
  const list=$('#endorseList');const scrollTop=list.scrollTop;list.replaceChildren();const liked=new Set(state.liked||[]);
  state.words.forEach(word=>{const row=document.createElement('div');row.className='endorse-row';const info=document.createElement('div');info.className='endorse-info';const name=document.createElement('strong');name.textContent=word.text;const meta=document.createElement('small');meta.textContent='投稿 '+word.count+' · 讚同 '+(word.likes||0)+' · 熱度 '+heat(word);info.append(name,meta);
  const b=document.createElement('button');b.type='button';b.className=liked.has(word.text)?'like-button liked':'like-button';b.textContent=liked.has(word.text)?'✓ 已讚同':'👍 讚同';b.disabled=liked.has(word.text)||pendingLikes.has(word.text)||!state.open||!ready||!connected;b.setAttribute('aria-label',b.textContent+'「'+word.text+'」');
- b.onclick=async()=>{if(pendingLikes.has(word.text))return;pendingLikes.add(word.text);b.disabled=true;try{await api('/api/like',{method:'POST',body:{text:word.text,room:new URLSearchParams(location.search).get('room')||'',round:state.round}});toast('已讚同「'+word.text+'」！')}catch(e){toast(e.message)}finally{pendingLikes.delete(word.text);await refresh();renderEndorsements(true)}};
+ b.onclick=async()=>{if(pendingLikes.has(word.text))return;pendingLikes.add(word.text);b.disabled=true;try{await api('/api/like',{method:'POST',body:{text:word.text,room:participantRoom,round:state.round}});toast('已讚同「'+word.text+'」！')}catch(e){toast(e.message)}finally{pendingLikes.delete(word.text);await refresh();renderEndorsements(true)}};
  row.append(info,b);list.append(row)});list.scrollTop=scrollTop;$('#endorseEmpty').hidden=state.words.length>0;
 }
 function hash(s){let h=2166136261;for(let i=0;i<s.length;i++)h=Math.imul(h^s.charCodeAt(i),16777619);return h>>>0}
@@ -97,14 +98,14 @@ function savePNG(){
  ctx.font='24px "Microsoft JhengHei", sans-serif';ctx.fillText(state.responses+' 次投稿 · '+(state.likesTotal||0)+' 個讚同 · '+state.words.length+' 個詞語 · 作者：峻爸',960,1040);c.toBlob(b=>{if(b)downloadBlob(b,'Junba_WordCloud.png')},'image/png');
 }
 async function loadJoin(){
- try{const v=await(await api('/api/join')).json();if(link===v.join)return;link=v.join;
+ try{const v=await(await api('/api/join')).json();const nextLink=v.shortJoin||v.join;if(link===nextLink)return;link=nextLink;
   if(mode==='screen'){$('#screenQR').src=API_ROOT+'/qr.png?v='+Date.now();$('#screenJoinURL').textContent=link;}
  }catch{}
 }
 if(mode==='host'){
  if(!key){toast('主持台憑證已失效。請重新開啟 EXE，再使用自動開啟的主持台。');document.querySelectorAll('#host button,#host select,#host textarea').forEach(e=>e.disabled=true)}
  async function loadConfig(){
-  try{config=await(await api('/api/admin/config',{admin:true})).json();renderQuestionBank();link=config.join;$('#network').replaceChildren();config.links.forEach(l=>{const o=document.createElement('option');o.value=l.split('/join?')[0];o.textContent=l.split('/join?')[0];o.selected=l===config.join;$('#network').append(o)});$('#hostQR').src=API_ROOT+'/qr.png?v='+Date.now();$('#testJoin').href=link;$('#dataNote').textContent=IS_CLOUD?'結果自動儲存在活動帳號。':'自動儲存：'+config.dataPath;$('#networkWarning').textContent=IS_CLOUD?'線上活動：可使用各自的 Wi-Fi 或 4G／5G。':link.includes('127.0.0.1')?'目前只有本機網址，手機無法使用。請先將筆電連上學校 Wi-Fi 或手機熱點，再按「重新偵測網路」。':'請確認這是實際使用的 Wi-Fi 網址。';}
+  try{config=await(await api('/api/admin/config',{admin:true})).json();renderQuestionBank();link=config.shortJoin||config.join;$('#network').replaceChildren();config.links.forEach(l=>{const o=document.createElement('option');o.value=l.split('/join?')[0];o.textContent=l.split('/join?')[0];o.selected=l===config.join;$('#network').append(o)});$('#hostQR').src=API_ROOT+'/qr.png?v='+Date.now();$('#testJoin').href=link;$('#dataNote').textContent=IS_CLOUD?'結果自動儲存在活動帳號。':'自動儲存：'+config.dataPath;$('#networkWarning').textContent=IS_CLOUD?'線上活動：可使用各自的 Wi-Fi 或 4G／5G。':link.includes('127.0.0.1')?'目前只有本機網址，手機無法使用。請先將筆電連上學校 Wi-Fi 或手機熱點，再按「重新偵測網路」。':'請確認這是實際使用的 Wi-Fi 網址。';}
   catch(e){toast(e.message)}
  }
 
@@ -128,7 +129,7 @@ if(mode==='host'){
  $('#shutdown').onclick=async()=>{if(!confirm('結束文字雲程式？現有資料已自動儲存，所有手機將停止投稿。'))return;try{await api('/api/admin/shutdown',{method:'POST',admin:true});toast('程式已結束，可以關閉此頁。');document.querySelectorAll('#host button,#host select,#host textarea').forEach(e=>e.disabled=true)}catch(e){toast(e.message)}};
  if(IS_CLOUD){document.querySelectorAll('.join-card p').forEach(p=>p.innerHTML='① 使用自己的網路<br>② 掃碼輸入詞語');$('#copyHostLink').hidden=false;$('#copyHostLink').onclick=async()=>{const url=location.origin+API_ROOT+'/host#key='+key;try{await navigator.clipboard.writeText(url);toast('已複製主持連結，請自行保存。')}catch{prompt('請保存這個具有管理權限的主持連結：',url)}};$('#refreshNetwork').hidden=true;$('#network').hidden=true;$('.local-badge').textContent='線上活動';$('#networkWarning').textContent='大家可以各用自己的網路，掃碼參與。';$('#shutdown').hidden=true;}if(key)loadConfig();
 }else if(mode==='join'){
- const room=new URLSearchParams(location.search).get('room')||'';
+ const room=participantRoom;
  api('/api/join').then(r=>r.json()).then(v=>{ready=new URL(v.join).searchParams.get('room')===room;updateSubmit();if(state)renderEndorsements();if(!ready){$('#submitStatus').textContent='活動連結已失效，請重新掃描現場 QR Code。';$('#submitStatus').className='submit-status error'}}).catch(()=>setConnection(false));
  $('#submitForm').onsubmit=async e=>{
   e.preventDefault();if(!state||!ready||submitting)return;submitting=true;const currentRound=state.round;const b=$('#submitWords');b.disabled=true;b.textContent='送出中…';$('#submitStatus').textContent='';
