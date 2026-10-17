@@ -1,0 +1,1 @@
+{"name":"junba-wordcloud-online","version":"1.1.0","private":true,"type":"module","scripts":{"dev":"wrangler dev","deploy":"wrangler deploy","check":"node --test tests.mjs","dry-run":"wrangler deploy --dry-run"},"dependencies":{"qrcode-generator":"1.4.4"},"devDependencies":{"wrangler":"4.45.0"}}

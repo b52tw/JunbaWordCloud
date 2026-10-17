@@ -1,0 +1,9 @@
+node_modules/
+.wrangler/
+.bundle/
+font-sources/
+build/
+release/
+*.exe
+.dev.vars
+.dev.vars.*

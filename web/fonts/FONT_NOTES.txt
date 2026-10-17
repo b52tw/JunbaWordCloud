@@ -1,0 +1,3 @@
+JunbaCloudRound: converted from jf open huninn 2.1, renamed to avoid reserved font names. Original copyright notices and SIL OFL license are retained in ROUND_LICENSE.txt. Hanzi source attribution is covered there and APACHE-2.0.txt is included.
+JunbaCloudSerif: static weight-600 subset derived from Noto Serif TC, renamed for this distribution. Original copyright and SIL OFL license are retained in SERIF_LICENSE.txt. Its character subset follows the round font; unsupported rare characters fall back to the operating system font.
+Source: https://github.com/justfont/open-huninn-font and https://github.com/google/fonts/tree/main/ofl/notoseriftc

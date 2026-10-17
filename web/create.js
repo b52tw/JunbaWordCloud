@@ -1,0 +1,2 @@
+'use strict';
+document.querySelector('#createForm').onsubmit=async e=>{e.preventDefault();const button=document.querySelector('#createButton'),status=document.querySelector('#createStatus');button.disabled=true;status.textContent='建立中…';try{const r=await fetch('/api/new',{method:'POST',headers:{Authorization:'Bearer '+document.querySelector('#setupKey').value}}),v=await r.json();if(!r.ok)throw Error(v.error||'無法建立活動');document.querySelector('#setupKey').value='';location.assign(v.host)}catch(e){status.textContent=e.message;button.disabled=false}};
