@@ -13,7 +13,7 @@ try{
  const created=await mf.dispatchFetch(origin+'/api/new',{method:'POST',headers:{Authorization:'Bearer '+secret}});
  assert.equal(created.status,200);const links=await created.json(),base=origin+'/r/'+links.room,key=links.host.split('#key=')[1];
  await mf.setOptions({...options,bindings:{SETUP_KEY:secret,PUBLIC_JOIN_ROOM:links.room}});
- for(const path of ['/join','/join/']){
+ for(const path of ['/join','/join/','/host','/host/']){
   const entry=await mf.dispatchFetch(origin+path);assert.equal(entry.status,200);assert.equal(entry.headers.get('Location'),null);assert.match(entry.headers.get('Cache-Control'),/no-store/);
   const page=await entry.text();assert(page.includes('<meta name="junba-room" content="'+links.room+'">'));assert(!page.includes(key));assert(!page.includes(secret));
  }
@@ -21,8 +21,12 @@ try{
  assert.equal((await mf.dispatchFetch(origin+'/join',{method:'POST'})).status,405);
  const invitation=await(await mf.dispatchFetch(base+'/api/join')).json();assert.equal(invitation.shortJoin,origin+'/join');assert.equal(invitation.join,links.join);
  assert.equal(new URL(invitation.join).searchParams.get('room'),links.room,'existing participant pages must still recognize the long link');
- const config=await(await mf.dispatchFetch(base+'/api/admin/config',{headers:{Authorization:'Bearer '+key}})).json();assert.equal(config.shortJoin,origin+'/join');
+ const config=await(await mf.dispatchFetch(base+'/api/admin/config',{headers:{Authorization:'Bearer '+key}})).json();assert.equal(config.shortJoin,origin+'/join');assert.equal(config.shortHost,origin+'/host');
  assert.equal((await mf.dispatchFetch(base+'/api/admin/config')).status,403);
+ assert.equal((await mf.dispatchFetch(base+'/api/admin/host-qr')).status,403);
+ assert.equal((await mf.dispatchFetch(base+'/api/admin/host-qr',{headers:{Authorization:'Bearer wrong-key'}})).status,403);
+ const hostQR=await mf.dispatchFetch(base+'/api/admin/host-qr',{headers:{Authorization:'Bearer '+key}});assert.equal(hostQR.status,200);assert.match(hostQR.headers.get('Cache-Control'),/no-store/);
+ const privateQR=qrcode(0,'M');privateQR.addData(origin+'/host#key='+key);privateQR.make();assert.equal(await hostQR.text(),privateQR.createSvgTag({scalable:true,margin:4}));
  const qr=qrcode(0,'M');qr.addData(origin+'/join');qr.make();
  assert.equal(await(await mf.dispatchFetch(base+'/qr.png')).text(),qr.createSvgTag({scalable:true,margin:4}));
  let state=await(await mf.dispatchFetch(base+'/api/state')).json();

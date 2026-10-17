@@ -5,6 +5,7 @@ const json=(v,status=200)=>new Response(JSON.stringify(v),{status,headers:{'Cont
 const digest=async s=>[...new Uint8Array(await crypto.subtle.digest('SHA-256',new TextEncoder().encode(s)))].map(b=>b.toString(16).padStart(2,'0')).join('');
 const token=()=>crypto.randomUUID().replaceAll('-','');
 const publicJoinRoom=env=>/^[a-z0-9]{12,40}$/.test(env.PUBLIC_JOIN_ROOM||'')?env.PUBLIC_JOIN_ROOM:'';
+function qrResponse(text){const qr=qrcode(0,'M');qr.addData(text);qr.make();return new Response(qr.createSvgTag({scalable:true,margin:4}),{headers:{'Content-Type':'image/svg+xml','Cache-Control':'no-store'}})}
 function setupProblem(env){
  if(typeof env.SETUP_KEY!=='string'||!env.SETUP_KEY)return {code:'SETUP_KEY_MISSING',error:'網站尚未讀到活動管理碼。請在 Cloudflare 的正式（生產）環境新增秘密 SETUP_KEY，並儲存部署。'};
  if(env.SETUP_KEY.length<24)return {code:'SETUP_KEY_TOO_SHORT',error:'Cloudflare 裡儲存的活動管理碼不足 24 個字元。請編輯秘密 SETUP_KEY 的值，改為至少 24 個英數字元，再儲存部署。'};
@@ -14,7 +15,7 @@ async function body(request){const s=await request.text();if(s.length>65536)thro
 function secure(response,url){if(response.status===101)return response;const r=new Response(response.body,response);r.headers.set('X-Content-Type-Options','nosniff');r.headers.set('Referrer-Policy','no-referrer');r.headers.set('X-Frame-Options','DENY');r.headers.set('Content-Security-Policy',"default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self'; connect-src 'self' "+url.origin.replace('https:','wss:').replace('http:','ws:')+"; object-src 'none'; base-uri 'none'; frame-ancestors 'none'");return r}
 export default{async fetch(request,env){const url=new URL(request.url);try{
  if(request.method==='POST'&&request.headers.get('Origin')&&request.headers.get('Origin')!==url.origin)throw new UserError('請從本活動頁面操作',403);
- if(url.pathname==='/join'||url.pathname==='/join/'){
+ if(/^\/(join|host)\/?$/.test(url.pathname)){
   if(!['GET','HEAD'].includes(request.method))throw new UserError('不支援的操作',405);
   const room=publicJoinRoom(env);if(!room)throw new UserError('尚未設定固定參加入口，請使用主持台提供的 QR Code。',404);
   const asset=await env.ASSETS.fetch(new Request(url.origin+'/',request));if(!asset.ok)return secure(asset,url);
@@ -51,11 +52,12 @@ export class WordCloudRoom extends DurableObject{
  try{
   const meta=this.core.meta();if(!meta)throw new UserError('活動不存在，請確認 QR Code',404);
   if(path.startsWith('/api/admin/')){const key=(request.headers.get('Authorization')||'').replace(/^Bearer /,'');if(await digest(key)!==meta.adminHash)throw new UserError('主持台憑證無效',403)}
-  const join=url.origin+'/r/'+room+'/join?room='+room,shortJoin=publicJoinRoom(this.env)===room?url.origin+'/join':undefined;
+  const join=url.origin+'/r/'+room+'/join?room='+room,shortJoin=publicJoinRoom(this.env)===room?url.origin+'/join':undefined,shortHost=shortJoin?url.origin+'/host':undefined;
   if(path==='/api/state'&&request.method==='GET')return reply(json(this.core.state(voter)));
   if(path==='/api/join'&&request.method==='GET')return reply(json({join,shortJoin,room}));
-  if(path==='/api/admin/config')return reply(json({links:[join],join,shortJoin,dataPath:'活動雲端儲存',version:'1.1.0',online:true,questions:meta.questions}));
-  if(path==='/qr.png'){const qr=qrcode(0,'M');qr.addData(shortJoin||join);qr.make();return new Response(qr.createSvgTag({scalable:true,margin:4}),{headers:{'Content-Type':'image/svg+xml','Cache-Control':'no-store'}})}
+  if(path==='/api/admin/config')return reply(json({links:[join],join,shortJoin,shortHost,dataPath:'活動雲端儲存',version:'1.1.0',online:true,questions:meta.questions}));
+  if(path==='/api/admin/host-qr'&&request.method==='GET')return reply(qrResponse((shortHost||url.origin+'/r/'+room+'/host')+'#key='+(request.headers.get('Authorization')||'').replace(/^Bearer /,'')));
+  if(path==='/qr.png')return qrResponse(shortJoin||join);
   if(path==='/ws'&&request.headers.get('Upgrade')?.toLowerCase()==='websocket'){
    if(this.ctx.getWebSockets().length>=256)throw new UserError('連線較多，將切換定時更新',503);
    const pair=new WebSocketPair(),[client,server]=Object.values(pair);this.ctx.acceptWebSocket(server);server.send(JSON.stringify(this.core.state()));return new Response(null,{status:101,webSocket:client});
