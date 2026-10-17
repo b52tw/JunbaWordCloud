@@ -27,6 +27,8 @@ const sandbox={console,URL,URLSearchParams,Blob,ResizeObserver:class{observe(){}
 vm.createContext(sandbox);vm.runInContext(fs.readFileSync('web/app.js','utf8'),sandbox);
 (async()=>{
  await new Promise(setImmediate);await new Promise(setImmediate);
+ assert.equal(element('#privateHostLinkCard').hidden,false);assert.equal(element('#visibleHostShortLink').value,origin+'/host#key='+key);
+ await element('#copyVisibleHostLink').onclick();assert.equal(copied.pop(),origin+'/host#key='+key);
  await element('#copyHostLink').onclick();assert.equal(copied.pop(),origin+'/host#key='+key);
  await element('#copyShortHostLink').onclick();assert.equal(copied.pop(),origin+'/host#key='+key);
  await element('#copyLongHostLink').onclick();assert.equal(copied.pop(),origin+'/r/'+room+'/host#key='+key);
