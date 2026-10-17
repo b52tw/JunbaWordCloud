@@ -1,0 +1,21 @@
+{
+  "name": "junba-wordcloud-online",
+  "version": "1.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy",
+    "check": "node --test online/tests.mjs",
+    "dry-run": "wrangler deploy --dry-run"
+  },
+  "dependencies": {"qrcode-generator":"1.4.4"},
+  "devDependencies": {"wrangler":"4.45.0"},
+  "cloudflare": {
+    "bindings": {
+      "SETUP_KEY": {
+        "description": "請自行設定至少 24 個字元的活動管理碼，混用英文字母與數字並私下保存。這是建立文字雲活動用的管理碼，請勿使用 Google／GitHub 密碼，不要貼到聊天或程式碼。"
+      }
+    }
+  }
+}

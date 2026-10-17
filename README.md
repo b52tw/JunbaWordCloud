@@ -10,46 +10,78 @@
 - 最多 100 題的題庫，支援新增、切換、匯入與匯出。
 - Windows 本機版與 Cloudflare 線上版共用前端。
 
-## Cloudflare 線上部署
+## 在您自己的瀏覽器發布
 
-GitHub 保存程式碼；完整的即時同步服務由 Cloudflare Workers、SQLite Durable Objects 與 Static Assets 執行。GitHub Pages 本身無法執行這個後端。
+請在您已登入 Cloudflare 的 Chrome／Edge／Safari 操作，不必登入 ChatGPT 的雲端瀏覽器。
 
-在 Cloudflare Workers & Pages 匯入本專案，設定：
+[![Deploy to Cloudflare](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/b52tw/JunbaWordCloud)
+
+1. 點上方 **Deploy to Cloudflare**。這是 Cloudflare 官方部署入口，會把本專案複製到您選擇的 GitHub 帳號並架設服務。
+2. 依畫面連接 GitHub。新專案副本可命名 `JunbaWordCloud-Online`，避免與現有的 `JunbaWordCloud` 同名。
+3. 如出現 `SETUP_KEY`，請自行設定至少 **24 個字元**的活動管理碼，混用英文字母與數字並私下保存。請勿使用 Google／GitHub 密碼，也不要把管理碼貼到聊天、GitHub 或截圖中。
+4. 按部署，等待成功後開啟畫面提供的 **workers.dev** 網址。
+5. 開啟網站，輸入剛才的活動管理碼建立活動。請私下保存主持連結，將參加者 QR Code 或參加者連結提供給大家。
+
+請選 **Workers Free** 免費方案；這個專案不需要購買網域。若畫面要求信用卡或付費升級，先停止並確認是否選到其他服務。
+
+### 若部署頁沒有詢問活動管理碼
+
+部署後到該 Worker 的 **Settings（設定）→ Variables and Secrets（變數與秘密）→ Add（新增）**：
+
+| 項目 | 填入 |
+| --- | --- |
+| Type | **Secret** |
+| Name | `SETUP_KEY` |
+| Value | 您自行設定的至少 24 個字元管理碼 |
+
+儲存並部署後重新開啟網站。這個管理碼只供主持人建立活動，參加者不需知道。
+
+### 使用原本的 GitHub 專案，不建立副本
+
+也可在您自己的 Cloudflare 控制台，從 **Workers & Pages → Create application（建立應用程式）→ Import a repository（匯入儲存庫）**，連接 GitHub 並選 `b52tw/JunbaWordCloud`。
+
+若 GitHub 詢問儲存庫存取範圍，優先使用 **Only select repositories**，選擇本次要部署的專案。
 
 | 項目 | 值 |
 | --- | --- |
-| 根目錄 | `online` |
-| 建置指令 | `npm ci` |
+| Worker 名稱 | `junba-wordcloud` |
+| 根目錄 | 專案根目錄，留白或 `/`；不必填 `online` |
+| 建置指令 | 留白；平台會安裝 npm 套件 |
 | 部署指令 | `npx wrangler deploy` |
 | 正式分支 | `main` |
 
-部署後在 Worker 的 Settings → Variables and Secrets 新增 **Secret** `SETUP_KEY`，值請自行設定至少 24 個字元。這是建立活動用的管理碼，請勿使用 Google、GitHub 或其他帳號密碼，也不要提交到程式碼。
+部署成功後依上節設定 **Secret** `SETUP_KEY`。**建置環境的秘密**與 **Worker 執行時的秘密**不同；手動匯入時請設定在部署後 Worker 的 Settings → Variables and Secrets。
 
-開啟 Worker 網址，輸入活動管理碼即可建立活動。請私下保存主持連結；僅將參加者連結或 QR Code 提供給大家。
+### 服務架構
 
-也可使用 CLI：
+GitHub 保存程式碼；完整的即時同步服務由 Cloudflare Workers、SQLite Durable Objects 與 Static Assets 執行。GitHub Pages 本身無法執行這個後端。
 
-```sh
-cd online
-npm ci
-npx wrangler login
-npx wrangler deploy
-npx wrangler secret put SETUP_KEY
-```
+程式碼上傳到 GitHub 後仍需完成 Cloudflare 部署；部署成功以 Cloudflare 顯示的結果為準。請先用少量手機測試投稿、讚同、換題與清空，再進行多人演練。
 
 ## 本機開發與驗證
 
+現在可以直接在專案根目錄執行，不必切換子目錄：
+
 ```sh
-cd online
 npm ci
 npm run check
 npm run dry-run
 npm run dev
 ```
 
-本機測試須另設開發環境的 `SETUP_KEY`，請將它放在未追蹤的 `.dev.vars`，不要提交。
+本機測試請複製 `.dev.vars.example` 為未追蹤的 `.dev.vars`，自行填入開發用管理碼，不要提交。
 
-`runtime_check.mjs` 提供 Miniflare 的 200 個模擬連線驗證。模擬結果不等於實際學校網路與手機的壓力測試；正式活動前請以實際設備演練。
+CLI 部署方式：
+
+```sh
+npx wrangler login
+npm run deploy
+npx wrangler secret put SETUP_KEY
+```
+
+`online/` 原有的獨立指令與設定仍可使用，但根目錄的設定是 GitHub／Cloudflare 匯入的預設入口。
+
+`online/runtime_check.mjs` 提供 Miniflare 的 200 個模擬連線驗證。模擬結果不等於實際學校網路與手機的壓力測試；正式活動前請以實際設備演練。
 
 ## Windows 本機版
 
