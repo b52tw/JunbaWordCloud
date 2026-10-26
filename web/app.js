@@ -25,7 +25,7 @@ async function refresh(){
 function consume(next){if(!Array.isArray(next.liked))next.liked=state&&state.voteEpoch===next.voteEpoch?(state.liked||[]):[];state=next;setConnection(true);render();ensureCloudFont();}
 function updateSubmit(){if(!state)return;const b=$('#submitWords');b.disabled=submitting||!state.open||!ready||!connected;b.textContent=submitting?'送出中…':!ready?'活動連結無效':!connected?'等待重新連線…':state.open?'送出我的想法 ↗':'主持人已暫停收件';}
 function render(){
- if(!state)return;
+ if(!state||mode==='history')return;
  if(mode==='join'){
   const old=$('#joinQuestion').textContent;$('#joinQuestion').textContent=state.question;
   if(displayedRound&&displayedRound!==state.round){$('#submitStatus').textContent=old===state.question?'主持人已清空重來，現在可以重新投稿。':'題目已更新，請確認後再送出。';$('#submitStatus').className='submit-status';}
