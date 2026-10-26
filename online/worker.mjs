@@ -56,6 +56,10 @@ export class WordCloudRoom extends DurableObject{
   if(path==='/api/state'&&request.method==='GET')return reply(json(this.core.state(voter)));
   if(path==='/api/join'&&request.method==='GET')return reply(json({join,shortJoin,room}));
   if(path==='/api/admin/config')return reply(json({links:[join],join,shortJoin,shortHost,dataPath:'活動雲端儲存',version:'1.1.0',online:true,questions:meta.questions}));
+  if(path==='/api/admin/history'&&request.method==='GET')return reply(json(this.core.history({limit:url.searchParams.get('limit'),cursor:url.searchParams.get('cursor')||'0'})));
+  const historyMatch=path.match(/^\/api\/admin\/history\/([a-f0-9-]{36})$/);
+  if(historyMatch&&request.method==='GET')return reply(json(this.core.historyDetail(historyMatch[1])));
+
   if(path==='/api/admin/host-qr'&&request.method==='GET')return reply(qrResponse((shortHost||url.origin+'/r/'+room+'/host')+'#key='+(request.headers.get('Authorization')||'').replace(/^Bearer /,'')));
   if(path==='/qr.png')return qrResponse(shortJoin||join);
   if(path==='/ws'&&request.headers.get('Upgrade')?.toLowerCase()==='websocket'){
