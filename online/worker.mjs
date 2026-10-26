@@ -37,7 +37,7 @@ export default{async fetch(request,env){const url=new URL(request.url);try{
  const match=url.pathname.match(/^\/r\/([a-z0-9]{12,40})(\/.*)?$/);
  if(match){const path=match[2]||'/host';if(path.startsWith('/api/')||path==='/qr.png'||path==='/ws'){const stub=env.ROOMS.get(env.ROOMS.idFromName(match[1]));return secure(await stub.fetch(request),url)}
   if(path==='/lite')return secure(await env.ASSETS.fetch(new Request(url.origin+'/legacy',request)),url);
-  if(['/host','/join','/screen'].includes(path))return secure(await env.ASSETS.fetch(new Request(url.origin+'/',request)),url);
+  if(['/host','/join','/screen','/history'].includes(path))return secure(await env.ASSETS.fetch(new Request(url.origin+'/',request)),url);
   return json({error:'找不到頁面'},404);
  }
  if(url.pathname==='/'||url.pathname==='/create')return secure(await env.ASSETS.fetch(new Request(url.origin+'/create',request)),url);
