@@ -88,24 +88,45 @@ function paint(){
 }
 let resizeTimer;window.addEventListener('resize',()=>{clearTimeout(resizeTimer);resizeTimer=setTimeout(paint,120)});
 
-const historyState={cursor:'0',stack:[],page:1,next:null};
+const historyState={cursor:'0',stack:[],page:1,next:null,busy:false};
+function historyEl(id){return document.getElementById(id)}
+function historyMessage(id,message){const el=historyEl(id);if(el)el.textContent=String(message||'')}
+function historyError(label,error,statusId){console.error('[History] '+label,error);historyMessage(statusId,error instanceof Error?error.message:'歷史功能暫時無法使用，請稍後再試。')}
 function renderHistoryCards(items,cardsId,statusId,detailId,prevId,nextId,pageId){
- const cards=$('#'+cardsId);cards.replaceChildren();
+ const cards=historyEl(cardsId),prev=historyEl(prevId),next=historyEl(nextId),pageLabel=historyEl(pageId);
+ if(!cards||!prev||!next||!pageLabel){historyMessage(statusId,'歷史介面尚未完整載入；主持台其他功能仍可使用。');return false}
+ if(!Array.isArray(items))throw new Error('歷史列表格式不正確。');
+ cards.replaceChildren();
  if(!items.length){const empty=document.createElement('p');empty.className='empty-list';empty.textContent='目前還沒有歷史快照。可手動保存，或在換題／清空前由系統自動保存。';cards.append(empty);}
- items.forEach(item=>{const card=document.createElement('section');card.className='history-card';const h=document.createElement('h3');h.textContent=item.title||item.question;const p=document.createElement('p');p.textContent=item.question+' · '+new Date(item.createdAt).toLocaleString('zh-TW');const meta=document.createElement('p');meta.textContent=(item.responses||0)+' 次投稿 · '+(item.likesTotal||0)+' 個讚同 · '+(item.wordCount||0)+' 個詞語';const b=document.createElement('button');b.type='button';b.className='secondary';b.textContent='檢視快照';b.onclick=()=>loadHistoryDetail(item.id,detailId,statusId);card.append(h,p,meta,b);cards.append(card)});
- $('#'+prevId).disabled=historyState.stack.length===0;
- $('#'+nextId).disabled=!historyState.next;
- $('#'+pageId).textContent='第 '+historyState.page+' 頁';
+ items.forEach(item=>{if(!item||typeof item.id!=='string')return;const card=document.createElement('section');card.className='history-card';const h=document.createElement('h3');h.textContent=String(item.title||item.question||'未命名快照');const p=document.createElement('p');const stamp=Date.parse(item.createdAt||'');p.textContent=String(item.question||'')+' · '+(Number.isFinite(stamp)?new Date(stamp).toLocaleString('zh-TW'):'時間未知');const meta=document.createElement('p');meta.textContent=(item.responses||0)+' 次投稿 · '+(item.likesTotal||0)+' 個讚同 · '+(item.wordCount||0)+' 個詞語';const b=document.createElement('button');b.type='button';b.className='secondary';b.textContent='檢視快照';b.onclick=()=>loadHistoryDetail(item.id,detailId,statusId);card.append(h,p,meta,b);cards.append(card)});
+ prev.disabled=historyState.stack.length===0;next.disabled=!historyState.next;pageLabel.textContent='第 '+historyState.page+' 頁';return true;
 }
 async function loadHistoryDetail(id,detailId,statusId){
- try{const item=await(await api('/api/admin/history/'+encodeURIComponent(id),{admin:true})).json();const root=$('#'+detailId);root.replaceChildren();root.hidden=false;const h=document.createElement('h3');h.textContent=item.title||item.question;const q=document.createElement('p');q.textContent='題目：'+item.question;const meta=document.createElement('p');meta.textContent=new Date(item.createdAt).toLocaleString('zh-TW')+' · '+item.responses+' 次投稿 · '+item.likesTotal+' 個讚同';const list=document.createElement('div');list.className='word-list';(item.words||[]).forEach(w=>{const chip=document.createElement('div');chip.className='word-chip';const word=document.createElement('span');word.textContent=w.text;const count=document.createElement('strong');count.textContent='投稿 '+w.count+' · 讚同 '+w.likes+' · 熱度 '+(w.count+w.likes);chip.append(word,count);list.append(chip)});root.append(h,q,meta,list);$('#'+statusId).textContent='已載入快照；此頁為唯讀，不會影響目前活動。';}catch(e){console.error('[History] 無法載入快照',e);const status=$('#'+statusId);if(status)status.textContent=e instanceof Error?e.message:'歷史快照載入失敗，請稍後再試。'}
+ try{
+  if(typeof id!=='string'||!id)throw new Error('歷史快照識別碼無效。');
+  historyMessage(statusId,'正在讀取歷史快照……');
+  const response=await api('/api/admin/history/'+encodeURIComponent(id),{admin:true});
+  const item=await response.json();
+  if(!item||typeof item.id!=='string'||typeof item.question!=='string'||!Array.isArray(item.words))throw new Error('歷史快照內容格式不正確。');
+  for(const w of item.words)if(!w||typeof w.text!=='string'||!Number.isFinite(w.count)||!Number.isFinite(w.likes))throw new Error('歷史快照含有無效詞語資料。');
+  const root=historyEl(detailId);if(!root){historyMessage(statusId,'歷史檢視區尚未載入；主持台其他功能仍可使用。');return}
+  root.replaceChildren();root.hidden=false;const h=document.createElement('h3');h.textContent=item.title||item.question;const q=document.createElement('p');q.textContent='題目：'+item.question;const meta=document.createElement('p');meta.textContent=new Date(item.createdAt).toLocaleString('zh-TW')+' · '+item.responses+' 次投稿 · '+item.likesTotal+' 個讚同';const list=document.createElement('div');list.className='word-list';item.words.forEach(w=>{const chip=document.createElement('div');chip.className='word-chip';const word=document.createElement('span');word.textContent=w.text;const count=document.createElement('strong');count.textContent='投稿 '+w.count+' · 讚同 '+w.likes+' · 熱度 '+(w.count+w.likes);chip.append(word,count);list.append(chip)});root.append(h,q,meta,list);historyMessage(statusId,'已載入快照；此頁為唯讀，不會影響目前活動。');
+ }catch(e){historyError('無法載入快照',e,statusId)}
 }
 async function loadHistoryPage(reset=false,cardsId='hostHistoryCards',statusId='hostHistoryStatus',detailId='hostHistoryDetail',prevId='hostHistoryPrev',nextId='hostHistoryNext',pageId='hostHistoryPageLabel'){
- if(reset){historyState.cursor='0';historyState.stack=[];historyState.page=1}
- try{const page=await(await api('/api/admin/history?limit=10&cursor='+encodeURIComponent(historyState.cursor),{admin:true})).json();historyState.next=page.nextCursor;renderHistoryCards(page.items,cardsId,statusId,detailId,prevId,nextId,pageId);$('#'+statusId).textContent='共 '+page.total+' 筆歷史主題；每頁 '+page.limit+' 筆。';}catch(e){console.error('[History] 無法載入歷史列表',e);const status=$('#'+statusId);if(status)status.textContent=e instanceof Error?e.message:'歷史列表載入失敗，請稍後再試。'}
+ if(historyState.busy)return;
+ if(reset){historyState.cursor='0';historyState.stack=[];historyState.page=1;historyState.next=null}
+ historyState.busy=true;historyMessage(statusId,'正在載入歷史主題……');
+ try{
+  const response=await api('/api/admin/history?limit=10&cursor='+encodeURIComponent(historyState.cursor),{admin:true});
+  const page=await response.json();
+  if(!page||!Array.isArray(page.items)||!Number.isFinite(page.total)||!Number.isFinite(page.limit)||(page.nextCursor!==null&&typeof page.nextCursor!=='string'))throw new Error('歷史列表回應格式不正確。');
+  historyState.next=page.nextCursor;
+  if(renderHistoryCards(page.items,cardsId,statusId,detailId,prevId,nextId,pageId))historyMessage(statusId,'共 '+page.total+' 筆歷史主題；每頁 '+page.limit+' 筆。');
+ }catch(e){historyError('無法載入歷史列表',e,statusId)}finally{historyState.busy=false}
 }
-function historyNext(){if(!historyState.next)return;historyState.stack.push(historyState.cursor);historyState.cursor=historyState.next;historyState.page++;loadHistoryPage(false)}
-function historyPrev(){if(!historyState.stack.length)return;historyState.cursor=historyState.stack.pop();historyState.page=Math.max(1,historyState.page-1);loadHistoryPage(false)}
+function historyNext(){if(!historyState.next||historyState.busy)return;historyState.stack.push(historyState.cursor);historyState.cursor=historyState.next;historyState.page++;loadHistoryPage(false)}
+function historyPrev(){if(!historyState.stack.length||historyState.busy)return;historyState.cursor=historyState.stack.pop();historyState.page=Math.max(1,historyState.page-1);loadHistoryPage(false)}
 function downloadBlob(blob,name){const url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(url),10000)}
 async function downloadAdmin(path,name){try{const r=await api(path,{admin:true});downloadBlob(await r.blob(),name)}catch(e){toast(e.message)}}
 function savePNG(){
