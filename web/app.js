@@ -151,14 +151,20 @@ if(mode==='host'){
  }
 
  function renderQuestionBank(){const select=$('#questionBank'),previous=select.value;select.replaceChildren();const questions=config.questions||[];questions.forEach(q=>{const o=document.createElement('option');o.value=q;o.textContent=q;select.append(o)});if(questions.includes(previous))select.value=previous;else if(state&&questions.includes(state.question))select.value=state.question;$('#bankCount').textContent=questions.length+' / 100';['bankLoad','bankUse','bankDelete','bankExport'].forEach(id=>$('#'+id).disabled=!questions.length);}
- $('#saveSnapshot').onclick=async()=>{const title=prompt('為這份歷史快照命名（可留白使用目前題目）：',state?.question||'');if(title===null)return;try{await act({action:'snapshot',title});toast('歷史快照已保存。');if($('#hostHistoryDialog').open)loadHistoryPage(true)}catch(e){toast(e.message)}};
- $('#openHistory').onclick=async()=>{historyState.cursor='0';historyState.stack=[];historyState.page=1;$('#hostHistoryDialog').showModal();await loadHistoryPage(true)};
- $('#closeHostHistory').onclick=()=>$('#hostHistoryDialog').close();
- $('#hostHistoryPrev').onclick=()=>{if(!historyState.stack.length)return;historyState.cursor=historyState.stack.pop();historyState.page--;loadHistoryPage(false)};
- $('#hostHistoryNext').onclick=()=>{if(!historyState.next)return;historyState.stack.push(historyState.cursor);historyState.cursor=historyState.next;historyState.page++;loadHistoryPage(false)};
- $('#launchHistoryFromDialog').onclick=()=>window.open(API_ROOT+'/history#key='+encodeURIComponent(key),'junba-history');
- $('#launchHistory').onclick=()=>window.open(API_ROOT+'/history#key='+encodeURIComponent(key),'junba-history');
- if(IS_CLOUD)$('#launchHistory').hidden=false;else{$('#saveSnapshot').hidden=true;$('#openHistory').hidden=true;}
+ // 歷史功能採漸進式增強：歷史 DOM 缺失時停用該區塊，不影響主持台其他功能。
+ try{
+  const saveSnapshot=historyEl('saveSnapshot'),openHistory=historyEl('openHistory'),dialog=historyEl('hostHistoryDialog');
+  const closeHistory=historyEl('closeHostHistory'),prev=historyEl('hostHistoryPrev'),next=historyEl('hostHistoryNext');
+  const launchFromDialog=historyEl('launchHistoryFromDialog'),launchHistory=historyEl('launchHistory');
+  if(saveSnapshot)saveSnapshot.onclick=async()=>{const title=prompt('為這份歷史快照命名（可留白使用目前題目）：',state?.question||'');if(title===null)return;try{await act({action:'snapshot',title});toast('歷史快照已保存。');if(dialog?.open)loadHistoryPage(true)}catch(e){toast(e.message)}};
+  if(openHistory&&dialog)openHistory.onclick=async()=>{try{historyState.cursor='0';historyState.stack=[];historyState.page=1;dialog.showModal();await loadHistoryPage(true)}catch(e){historyError('無法開啟歷史管理',e,'hostHistoryStatus')}};
+  if(closeHistory&&dialog)closeHistory.onclick=()=>dialog.close();
+  if(prev)prev.onclick=historyPrev;
+  if(next)next.onclick=historyNext;
+  if(launchFromDialog)launchFromDialog.onclick=()=>window.open(API_ROOT+'/history#key='+encodeURIComponent(key),'junba-history');
+  if(launchHistory)launchHistory.onclick=()=>window.open(API_ROOT+'/history#key='+encodeURIComponent(key),'junba-history');
+  if(IS_CLOUD){if(launchHistory)launchHistory.hidden=false}else{if(saveSnapshot)saveSnapshot.hidden=true;if(openHistory)openHistory.hidden=true}
+ }catch(e){console.error('[History] 歷史介面初始化失敗；主持台核心功能仍繼續執行。',e)}
  $('#bankSave').onclick=async()=>{try{await act({action:'questionSave',question:$('#question').value});await loadConfig();$('#questionBank').value=$('#question').value.trim();toast('已存入題庫。')}catch(e){toast(e.message)}};
  $('#bankLoad').onclick=()=>{if($('#questionBank').value){$('#question').value=$('#questionBank').value;toast('已帶入，可編輯後套用。')}};
  $('#bankUse').onclick=async()=>{const question=$('#questionBank').value;if(!question)return;if(state&&(state.responses||state.likesTotal||state.words.length)&&!confirm('換成「'+question+'」並清空目前投稿及讚同？可先取消並匯出本題結果。題庫與 QR Code 保留。'))return;try{await act({action:'questionUse',question});$('#question').value=question;toast('已換題並重新開放收件。')}catch(e){toast(e.message)}};
@@ -181,7 +187,14 @@ if(mode==='host'){
   $('#copyVisibleHostLink').onclick=()=>$('#copyHostLink').onclick();$('#copyShortHostLink').onclick=()=>$('#copyHostLink').onclick();$('#copyLongHostLink').onclick=async()=>{const url=location.origin+API_ROOT+'/host#key='+key;try{await navigator.clipboard.writeText(url);toast('已複製主持長連結，請自行保存。')}catch{prompt('請保存這個具有管理權限的主持長連結：',url)}};
   $('#downloadHostQR').onclick=()=>{const image=$('#privateHostQR');if(!image.complete||!image.naturalWidth){toast('QR Code 還在載入，請稍後再按。');return}try{const canvas=document.createElement('canvas');canvas.width=1024;canvas.height=1024;const ctx=canvas.getContext('2d');ctx.fillStyle='#fff';ctx.fillRect(0,0,1024,1024);ctx.drawImage(image,0,0,1024,1024);canvas.toBlob(blob=>{if(blob)downloadBlob(blob,'JunbaWordCloud_Host_QR_PRIVATE.png');else toast('無法下載，請重新開啟主持人 QR Code。')},'image/png')}catch{toast('無法下載，請重新開啟主持人 QR Code。')}};
   $('#refreshNetwork').hidden=true;$('#network').hidden=true;$('.local-badge').textContent='線上活動';$('#networkWarning').textContent='大家可以各用自己的網路，掃碼參與。';$('#shutdown').hidden=true;}if(key)loadConfig();
-}else if(mode==='history'){ $('#historyBack').onclick=()=>location.href=API_ROOT+'/host#key='+encodeURIComponent(key);$('#historyPrev').onclick=()=>{if(!historyState.stack.length)return;historyState.cursor=historyState.stack.pop();historyState.page--;loadHistoryPage(false,'historyCards','historyStatus','historyDetail','historyPrev','historyNext','historyPageLabel')};$('#historyNext').onclick=()=>{if(!historyState.next)return;historyState.stack.push(historyState.cursor);historyState.cursor=historyState.next;historyState.page++;loadHistoryPage(false,'historyCards','historyStatus','historyDetail','historyPrev','historyNext','historyPageLabel')};loadHistoryPage(true,'historyCards','historyStatus','historyDetail','historyPrev','historyNext','historyPageLabel');
+}else if(mode==='history'){
+ try{
+  const back=historyEl('historyBack'),prev=historyEl('historyPrev'),next=historyEl('historyNext');
+  if(back)back.onclick=()=>location.href=API_ROOT+'/host#key='+encodeURIComponent(key);
+  if(prev)prev.onclick=historyPrev;
+  if(next)next.onclick=historyNext;
+  loadHistoryPage(true,'historyCards','historyStatus','historyDetail','historyPrev','historyNext','historyPageLabel');
+ }catch(e){historyError('歷史頁初始化失敗',e,'historyStatus')}
 }else if(mode==='join'){
  const room=participantRoom;
  api('/api/join').then(r=>r.json()).then(v=>{ready=new URL(v.join).searchParams.get('room')===room;updateSubmit();if(state)renderEndorsements();if(!ready){$('#submitStatus').textContent='活動連結已失效，請重新掃描現場 QR Code。';$('#submitStatus').className='submit-status error'}}).catch(()=>setConnection(false));
