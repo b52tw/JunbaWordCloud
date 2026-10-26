@@ -2,7 +2,7 @@
 const $=s=>document.querySelector(s);
 const route=location.pathname.replace(/\/$/,'');const match=route.match(/^\/r\/([a-z0-9]{12,40})(?:\/|$)/);const cloudRoom=match?match[1]:$('meta[name="junba-room"]')?.content||'';const API_ROOT=cloudRoom?'/r/'+cloudRoom:'';const IS_CLOUD=!!cloudRoom;
 const participantRoom=new URLSearchParams(location.search).get('room')||cloudRoom;
-const mode=route.endsWith('/join')?'join':route.endsWith('/screen')?'screen':'host';
+const mode=route.endsWith('/join')?'join':route.endsWith('/screen')?'screen':route.endsWith('/history')?'history':'host';
 $('#'+mode).hidden=false;
 const auth=new URLSearchParams(location.hash.slice(1)).get('key');
 if(auth){sessionStorage.setItem('junba-host-key',auth);history.replaceState(null,'',location.pathname+location.search)}
@@ -87,7 +87,26 @@ function paint(){
  if(mode==='host'&&state.words.length>positions.length)$('#statusLabel').textContent=(state.open?'● 開放投稿中':'Ⅱ 已暫停收件')+' · 顯示 '+positions.length+' 個熱門詞';
 }
 let resizeTimer;window.addEventListener('resize',()=>{clearTimeout(resizeTimer);resizeTimer=setTimeout(paint,120)});
-function downloadBlob(blob,name){const url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(url),10000)}
+
+const historyState={cursor:'0',stack:[],page:1,next:null};
+function renderHistoryCards(items,cardsId,statusId,detailId,prevId,nextId,pageId){
+ const cards=$('#'+cardsId);cards.replaceChildren();
+ if(!items.length){const empty=document.createElement('p');empty.className='empty-list';empty.textContent='目前還沒有歷史快照。可手動保存，或在換題／清空前由系統自動保存。';cards.append(empty);}
+ items.forEach(item=>{const card=document.createElement('section');card.className='history-card';const h=document.createElement('h3');h.textContent=item.title||item.question;const p=document.createElement('p');p.textContent=item.question+' · '+new Date(item.createdAt).toLocaleString('zh-TW');const meta=document.createElement('p');meta.textContent=(item.responses||0)+' 次投稿 · '+(item.likesTotal||0)+' 個讚同 · '+(item.wordCount||0)+' 個詞語';const b=document.createElement('button');b.type='button';b.className='secondary';b.textContent='檢視快照';b.onclick=()=>loadHistoryDetail(item.id,detailId,statusId);card.append(h,p,meta,b);cards.append(card)});
+ $('#'+prevId).disabled=historyState.stack.length===0;
+ $('#'+nextId).disabled=!historyState.next;
+ $('#'+pageId).textContent='第 '+historyState.page+' 頁';
+}
+async function loadHistoryDetail(id,detailId,statusId){
+ try{const item=await(await api('/api/admin/history/'+encodeURIComponent(id),{admin:true})).json();const root=$('#'+detailId);root.replaceChildren();root.hidden=false;const h=document.createElement('h3');h.textContent=item.title||item.question;const q=document.createElement('p');q.textContent='題目：'+item.question;const meta=document.createElement('p');meta.textContent=new Date(item.createdAt).toLocaleString('zh-TW')+' · '+item.responses+' 次投稿 · '+item.likesTotal+' 個讚同';const list=document.createElement('div');list.className='word-list';(item.words||[]).forEach(w=>{const chip=document.createElement('div');chip.className='word-chip';const word=document.createElement('span');word.textContent=w.text;const count=document.createElement('strong');count.textContent='投稿 '+w.count+' · 讚同 '+w.likes+' · 熱度 '+(w.count+w.likes);chip.append(word,count);list.append(chip)});root.append(h,q,meta,list);$('#'+statusId).textContent='已載入快照；此頁為唯讀，不會影響目前活動。';}catch(e){$('#'+statusId).textContent=e.message}
+}
+async function loadHistoryPage(reset=false,cardsId='hostHistoryCards',statusId='hostHistoryStatus',detailId='hostHistoryDetail',prevId='hostHistoryPrev',nextId='hostHistoryNext',pageId='hostHistoryPageLabel'){
+ if(reset){historyState.cursor='0';historyState.stack=[];historyState.page=1}
+ try{const page=await(await api('/api/admin/history?limit=10&cursor='+encodeURIComponent(historyState.cursor),{admin:true})).json();historyState.next=page.nextCursor;renderHistoryCards(page.items,cardsId,statusId,detailId,prevId,nextId,pageId);$('#'+statusId).textContent='共 '+page.total+' 筆歷史主題；每頁 '+page.limit+' 筆。';}catch(e){$('#'+statusId).textContent=e.message}
+}
+function historyNext(){if(!historyState.next)return;historyState.stack.push(historyState.cursor);historyState.cursor=historyState.next;historyState.page++;loadHistoryPage(false)}
+function historyPrev(){if(!historyState.stack.length)return;historyState.cursor=historyState.stack.pop();historyState.page=Math.max(1,historyState.page-1);loadHistoryPage(false)}
+\nfunction downloadBlob(blob,name){const url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(url),10000)}
 async function downloadAdmin(path,name){try{const r=await api(path,{admin:true});downloadBlob(await r.blob(),name)}catch(e){toast(e.message)}}
 function savePNG(){
  if(!state)return;const src=mode==='host'?$('#hostCanvas'):$('#screenCanvas');
@@ -111,6 +130,14 @@ if(mode==='host'){
  }
 
  function renderQuestionBank(){const select=$('#questionBank'),previous=select.value;select.replaceChildren();const questions=config.questions||[];questions.forEach(q=>{const o=document.createElement('option');o.value=q;o.textContent=q;select.append(o)});if(questions.includes(previous))select.value=previous;else if(state&&questions.includes(state.question))select.value=state.question;$('#bankCount').textContent=questions.length+' / 100';['bankLoad','bankUse','bankDelete','bankExport'].forEach(id=>$('#'+id).disabled=!questions.length);}
+ $('#saveSnapshot').onclick=async()=>{const title=prompt('為這份歷史快照命名（可留白使用目前題目）：',state?.question||'');if(title===null)return;try{await act({action:'snapshot',title});toast('歷史快照已保存。');if($('#hostHistoryDialog').open)loadHistoryPage(true)}catch(e){toast(e.message)}};
+ $('#openHistory').onclick=async()=>{historyState.cursor='0';historyState.stack=[];historyState.page=1;$('#hostHistoryDialog').showModal();await loadHistoryPage(true)};
+ $('#closeHostHistory').onclick=()=>$('#hostHistoryDialog').close();
+ $('#hostHistoryPrev').onclick=()=>{if(!historyState.stack.length)return;historyState.cursor=historyState.stack.pop();historyState.page--;loadHistoryPage(false)};
+ $('#hostHistoryNext').onclick=()=>{if(!historyState.next)return;historyState.stack.push(historyState.cursor);historyState.cursor=historyState.next;historyState.page++;loadHistoryPage(false)};
+ $('#launchHistoryFromDialog').onclick=()=>window.open(API_ROOT+'/history#key='+encodeURIComponent(key),'junba-history');
+ $('#launchHistory').onclick=()=>window.open(API_ROOT+'/history#key='+encodeURIComponent(key),'junba-history');
+ if(IS_CLOUD)$('#launchHistory').hidden=false;
  $('#bankSave').onclick=async()=>{try{await act({action:'questionSave',question:$('#question').value});await loadConfig();$('#questionBank').value=$('#question').value.trim();toast('已存入題庫。')}catch(e){toast(e.message)}};
  $('#bankLoad').onclick=()=>{if($('#questionBank').value){$('#question').value=$('#questionBank').value;toast('已帶入，可編輯後套用。')}};
  $('#bankUse').onclick=async()=>{const question=$('#questionBank').value;if(!question)return;if(state&&(state.responses||state.likesTotal||state.words.length)&&!confirm('換成「'+question+'」並清空目前投稿及讚同？可先取消並匯出本題結果。題庫與 QR Code 保留。'))return;try{await act({action:'questionUse',question});$('#question').value=question;toast('已換題並重新開放收件。')}catch(e){toast(e.message)}};
@@ -133,7 +160,7 @@ if(mode==='host'){
   $('#copyVisibleHostLink').onclick=()=>$('#copyHostLink').onclick();$('#copyShortHostLink').onclick=()=>$('#copyHostLink').onclick();$('#copyLongHostLink').onclick=async()=>{const url=location.origin+API_ROOT+'/host#key='+key;try{await navigator.clipboard.writeText(url);toast('已複製主持長連結，請自行保存。')}catch{prompt('請保存這個具有管理權限的主持長連結：',url)}};
   $('#downloadHostQR').onclick=()=>{const image=$('#privateHostQR');if(!image.complete||!image.naturalWidth){toast('QR Code 還在載入，請稍後再按。');return}try{const canvas=document.createElement('canvas');canvas.width=1024;canvas.height=1024;const ctx=canvas.getContext('2d');ctx.fillStyle='#fff';ctx.fillRect(0,0,1024,1024);ctx.drawImage(image,0,0,1024,1024);canvas.toBlob(blob=>{if(blob)downloadBlob(blob,'JunbaWordCloud_Host_QR_PRIVATE.png');else toast('無法下載，請重新開啟主持人 QR Code。')},'image/png')}catch{toast('無法下載，請重新開啟主持人 QR Code。')}};
   $('#refreshNetwork').hidden=true;$('#network').hidden=true;$('.local-badge').textContent='線上活動';$('#networkWarning').textContent='大家可以各用自己的網路，掃碼參與。';$('#shutdown').hidden=true;}if(key)loadConfig();
-}else if(mode==='join'){
+}else if(mode==='history'){ $('#historyBack').onclick=()=>location.href=API_ROOT+'/host#key='+encodeURIComponent(key);$('#historyPrev').onclick=()=>{if(!historyState.stack.length)return;historyState.cursor=historyState.stack.pop();historyState.page--;loadHistoryPage(false,'historyCards','historyStatus','historyDetail','historyPrev','historyNext','historyPageLabel')};$('#historyNext').onclick=()=>{if(!historyState.next)return;historyState.stack.push(historyState.cursor);historyState.cursor=historyState.next;historyState.page++;loadHistoryPage(false,'historyCards','historyStatus','historyDetail','historyPrev','historyNext','historyPageLabel')};loadHistoryPage(true,'historyCards','historyStatus','historyDetail','historyPrev','historyNext','historyPageLabel');\n}else if(mode==='join'){
  const room=participantRoom;
  api('/api/join').then(r=>r.json()).then(v=>{ready=new URL(v.join).searchParams.get('room')===room;updateSubmit();if(state)renderEndorsements();if(!ready){$('#submitStatus').textContent='活動連結已失效，請重新掃描現場 QR Code。';$('#submitStatus').className='submit-status error'}}).catch(()=>setConnection(false));
  $('#submitForm').onsubmit=async e=>{
