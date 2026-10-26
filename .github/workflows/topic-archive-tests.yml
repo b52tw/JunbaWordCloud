@@ -1,0 +1,29 @@
+name: Topic archive guardrails
+
+on:
+  push:
+    branches:
+      - fix/topic-archive-guardrails
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  syntax-and-core-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm install
+      - name: Check JavaScript syntax
+        run: |
+          node --check web/app.js
+          node --check online/core.mjs
+          node --check online/worker.mjs
+          node --check online/tests.mjs
+      - name: Run core regression tests
+        run: npm run check
+      - name: Validate Cloudflare bundle without deployment
+        run: npm run dry-run
