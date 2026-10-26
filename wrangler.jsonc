@@ -2,7 +2,7 @@
   "name": "junba-wordcloud-archive-test",
   "main": "online/worker.mjs",
   "compatibility_date": "2025-10-01",
-  "vars": {"PUBLIC_JOIN_ROOM":"topicarchive-test-2026"},
+  "vars": {"PUBLIC_JOIN_ROOM":"a1b2c3d4e5f6478890abcdef"},
   "assets": {"directory":"web","binding":"ASSETS","run_worker_first":true},
   "durable_objects":{"bindings":[{"name":"ROOMS","class_name":"WordCloudRoom"}]},
   "migrations":[{"tag":"v1","new_sqlite_classes":["WordCloudRoom"]}]
