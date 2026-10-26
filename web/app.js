@@ -17,7 +17,7 @@ async function api(path,{method='GET',body,admin=false}={}){
  return r;
 }
 async function act(body){await api('/api/admin/action',{method:'POST',body,admin:true});await refresh();}
-function setConnection(ok){connected=ok;const label=mode==='host'?$('#connection'):mode==='screen'?$('#screenConnection'):$('#joinConnection');label.textContent=ok?(mode==='screen'?'':'即時連線中'):'連線中斷，重新連線中…';if(mode==='join'){updateSubmit();if(state)renderEndorsements();}}
+function setConnection(ok){if(mode==='history')return;connected=ok;const label=mode==='host'?$('#connection'):mode==='screen'?$('#screenConnection'):$('#joinConnection');label.textContent=ok?(mode==='screen'?'':'即時連線中'):'連線中斷，重新連線中…';if(mode==='join'){updateSubmit();if(state)renderEndorsements();}}
 async function refresh(){
  if(loading)return;loading=true;
  try{const next=await(await api('/api/state')).json();consume(next);}catch(e){setConnection(false)}finally{loading=false}
