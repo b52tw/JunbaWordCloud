@@ -137,7 +137,7 @@ if(mode==='host'){
  $('#hostHistoryNext').onclick=()=>{if(!historyState.next)return;historyState.stack.push(historyState.cursor);historyState.cursor=historyState.next;historyState.page++;loadHistoryPage(false)};
  $('#launchHistoryFromDialog').onclick=()=>window.open(API_ROOT+'/history#key='+encodeURIComponent(key),'junba-history');
  $('#launchHistory').onclick=()=>window.open(API_ROOT+'/history#key='+encodeURIComponent(key),'junba-history');
- if(IS_CLOUD)$('#launchHistory').hidden=false;
+ if(IS_CLOUD)$('#launchHistory').hidden=false;else{$('#saveSnapshot').hidden=true;$('#openHistory').hidden=true;}
  $('#bankSave').onclick=async()=>{try{await act({action:'questionSave',question:$('#question').value});await loadConfig();$('#questionBank').value=$('#question').value.trim();toast('已存入題庫。')}catch(e){toast(e.message)}};
  $('#bankLoad').onclick=()=>{if($('#questionBank').value){$('#question').value=$('#questionBank').value;toast('已帶入，可編輯後套用。')}};
  $('#bankUse').onclick=async()=>{const question=$('#questionBank').value;if(!question)return;if(state&&(state.responses||state.likesTotal||state.words.length)&&!confirm('換成「'+question+'」並清空目前投稿及讚同？可先取消並匯出本題結果。題庫與 QR Code 保留。'))return;try{await act({action:'questionUse',question});$('#question').value=question;toast('已換題並重新開放收件。')}catch(e){toast(e.message)}};
