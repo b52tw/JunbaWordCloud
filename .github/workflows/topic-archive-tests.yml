@@ -1,6 +1,7 @@
 name: Topic archive guardrails
 
 on:
+  workflow_dispatch:
   push:
     branches:
       - fix/topic-archive-guardrails
