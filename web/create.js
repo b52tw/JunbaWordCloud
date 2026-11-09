@@ -10,12 +10,13 @@ async function checkSetup(){
 }
 keyField.addEventListener('input',()=>{
  if(setupUnavailable)return;
- const length=keyField.value.length;
- status.textContent=length>0&&length<24?'目前輸入 '+length+' 個字元；活動管理碼至少需要 24 個字元。':'';
+ keyField.value=keyField.value.replace(/\D/g,'').slice(0,4);
+ const valid=/^\d{4}$/.test(keyField.value);
+ status.textContent=keyField.value.length>0&&!valid?'活動管理碼必須是 4 位數字。':'';
 });
 form.onsubmit=async e=>{
  e.preventDefault();if(setupUnavailable)return;
- if(keyField.value.length<24){status.textContent='請輸入完整的活動管理碼，至少需要 24 個字元。';return;}
+ if(!/^\d{4}$/.test(keyField.value)){status.textContent='請輸入完整的 4 位數字活動管理碼。';return;}
  button.disabled=true;status.textContent='建立中…';
  try{
   const r=await fetch('/api/new',{method:'POST',headers:{Authorization:'Bearer '+keyField.value}}),v=await r.json();
