@@ -1,6 +1,7 @@
 {
   "name": "junba-wordcloud-staging",
   "main": "online/worker.mjs",
+  "account_id": "b6922ae6e76633c3d175e1452ceadc36",
   "compatibility_date": "2025-10-01",
   "assets": {"directory":"web","binding":"ASSETS","run_worker_first":true},
   "durable_objects":{"bindings":[{"name":"ROOMS","class_name":"WordCloudRoom"}]},
