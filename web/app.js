@@ -72,7 +72,7 @@ function layoutWords(ctx,words,W,H,scale=1){
  words.forEach(word=>{
   let size=Math.max(11*scale,ideal*(.4+.6*Math.sqrt(heat(word)/largest)));const lines=clouds?cloudLines(word.text):[word.text];size=Math.min(size,(W-45)/Math.max(1,...lines.map(l=>[...l].length)));if(size<8)return;
   const font=fontFamily(word.text);ctx.font='700 '+size+'px '+font;const pad=clouds?Math.max(12,size*.4):7,w=Math.ceil(Math.max(...lines.map(l=>ctx.measureText(l).width)))+pad*2,h=Math.ceil(size*1.14*lines.length+pad*2+(clouds?size*.35:0));const phase=(hash(word.text)%628)/100;
-  for(let t=0;t<2400;t++){const angle=t*.37+phase,rad=Math.sqrt(t/2400)*1.1,x=W/2+Math.cos(angle)*rad*W/2-w/2,y=H/2+Math.sin(angle)*rad*H/2-h/2;if(free(x,y,w,h)){mark(x,y,w,h);positions.push({text:word.text,count:word.count,likes:word.likes||0,score:heat(word),size,font,lines,left:x,top:y,w,h,x:x+w/2,y:y+h/2+size*.36-(lines.length-1)*size*.57,color:palette[state.theme][hash(word.text)%7]});break;}}
+  for(let t=0;t<2400;t++){const angle=t*.37+phase,rad=Math.sqrt(t/2400)*1.1,x=W/2+Math.cos(angle)*rad*W/2-w/2,y=H/2+Math.sin(angle)*rad*H/2-h/2;if(free(x,y,w,h)){mark(x,y,w,h);positions.push({text:word.text,count:word.count,likes:word.likes||0,participants:Array.isArray(word.participants)?word.participants:[],score:heat(word),size,font,lines,left:x,top:y,w,h,x:x+w/2,y:y+h/2+size*.36-(lines.length-1)*size*.57,color:palette[state.theme][hash(word.text)%7]});break;}}
  });return positions;
 }
 const CLOUD_PATH='M38 108C15 108 3 96 8 78C10 64 21 56 36 56C32 34 49 17 70 20C80 1 112 0 126 20C151 9 176 26 173 51C207 48 215 98 184 106C165 115 58 117 38 108Z';
