@@ -7,7 +7,7 @@ const token=()=>crypto.randomUUID().replaceAll('-','');
 const publicJoinRoom=env=>/^[a-z0-9]{12,40}$/.test(env.PUBLIC_JOIN_ROOM||'')?env.PUBLIC_JOIN_ROOM:'';
 function qrResponse(text){const qr=qrcode(0,'M');qr.addData(text);qr.make();return new Response(qr.createSvgTag({scalable:true,margin:4}),{headers:{'Content-Type':'image/svg+xml','Cache-Control':'no-store'}})}
 function setupProblem(env){
- if(typeof env.SETUP_KEY!=='string'||!env.SETUP_KEY)return {code:'SETUP_KEY_MISSING',error:'網站尚未讀到活動管理碼。請在 Cloudflare 的正式（生產）環境新增秘密 SETUP_KEY，並儲存部署。'};
+ if(typeof env.SETUP_KEY!=='string'||!env.SETUP_KEY)return {code:'SETUP_KEY_MISSING',error:'網站尚未讀到活動管理碼。請在 Cloudflare 的此測試環境新增秘密 SETUP_KEY，並儲存部署。'};
  if(env.SETUP_KEY.length<24)return {code:'SETUP_KEY_TOO_SHORT',error:'Cloudflare 裡儲存的活動管理碼不足 24 個字元。請編輯秘密 SETUP_KEY 的值，改為至少 24 個英數字元，再儲存部署。'};
  return null;
 }
