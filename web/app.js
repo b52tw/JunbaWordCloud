@@ -125,8 +125,9 @@ async function loadHistoryPage(reset=false,cardsId='hostHistoryCards',statusId='
   if(renderHistoryCards(page.items,cardsId,statusId,detailId,prevId,nextId,pageId))historyMessage(statusId,'共 '+page.total+' 筆歷史主題；每頁 '+page.limit+' 筆。');
  }catch(e){historyError('無法載入歷史列表',e,statusId)}finally{historyState.busy=false}
 }
-function historyNext(){if(!historyState.next||historyState.busy)return;historyState.stack.push(historyState.cursor);historyState.cursor=historyState.next;historyState.page++;loadHistoryPage(false)}
-function historyPrev(){if(!historyState.stack.length||historyState.busy)return;historyState.cursor=historyState.stack.pop();historyState.page=Math.max(1,historyState.page-1);loadHistoryPage(false)}
+function reloadHistoryPage(){return mode==='history'?loadHistoryPage(false,'historyCards','historyStatus','historyDetail','historyPrev','historyNext','historyPageLabel'):loadHistoryPage(false)}
+function historyNext(){if(!historyState.next||historyState.busy)return;historyState.stack.push(historyState.cursor);historyState.cursor=historyState.next;historyState.page++;reloadHistoryPage()}
+function historyPrev(){if(!historyState.stack.length||historyState.busy)return;historyState.cursor=historyState.stack.pop();historyState.page=Math.max(1,historyState.page-1);reloadHistoryPage()}
 function downloadBlob(blob,name){const url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(url),10000)}
 async function downloadAdmin(path,name){try{const r=await api(path,{admin:true});downloadBlob(await r.blob(),name)}catch(e){toast(e.message)}}
 function savePNG(){
