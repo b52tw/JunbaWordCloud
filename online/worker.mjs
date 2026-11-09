@@ -4,11 +4,22 @@ import {RoomCore,UserError,csv} from './core.mjs';
 const json=(v,status=200)=>new Response(JSON.stringify(v),{status,headers:{'Content-Type':'application/json; charset=utf-8','Cache-Control':'no-store'}});
 const digest=async s=>[...new Uint8Array(await crypto.subtle.digest('SHA-256',new TextEncoder().encode(s)))].map(b=>b.toString(16).padStart(2,'0')).join('');
 const token=()=>crypto.randomUUID().replaceAll('-','');
+const createFailures=new Map();
+function createRateLimited(request){
+ const ip=request.headers.get('CF-Connecting-IP')||'unknown',now=Date.now(),entry=createFailures.get(ip);
+ if(!entry||now-entry.started>10*60*1000){createFailures.set(ip,{started:now,count:0});return false}
+ return entry.count>=5;
+}
+function recordCreateFailure(request){
+ const ip=request.headers.get('CF-Connecting-IP')||'unknown',now=Date.now(),entry=createFailures.get(ip);
+ if(!entry||now-entry.started>10*60*1000)createFailures.set(ip,{started:now,count:1});
+ else entry.count++;
+ if(createFailures.size>5000)for(const [key,value] of createFailures)if(now-value.started>10*60*1000)createFailures.delete(key);
+}
 const publicJoinRoom=env=>/^[a-z0-9]{12,40}$/.test(env.PUBLIC_JOIN_ROOM||'')?env.PUBLIC_JOIN_ROOM:'';
 function qrResponse(text){const qr=qrcode(0,'M');qr.addData(text);qr.make();return new Response(qr.createSvgTag({scalable:true,margin:4}),{headers:{'Content-Type':'image/svg+xml','Cache-Control':'no-store'}})}
 function setupProblem(env){
- if(typeof env.SETUP_KEY!=='string'||!env.SETUP_KEY)return {code:'SETUP_KEY_MISSING',error:'網站尚未讀到活動管理碼。請在 Cloudflare 的此測試環境新增秘密 SETUP_KEY，並儲存部署。'};
- if(env.SETUP_KEY.length<24)return {code:'SETUP_KEY_TOO_SHORT',error:'Cloudflare 裡儲存的活動管理碼不足 24 個字元。請編輯秘密 SETUP_KEY 的值，改為至少 24 個英數字元，再儲存部署。'};
+ if(typeof env.ACTIVITY_CODE!=='string'||!/^\d{4}$/.test(env.ACTIVITY_CODE))return {code:'ACTIVITY_CODE_MISSING',error:'測試環境尚未設定 4 位數活動管理碼。請在 GitHub staging 環境新增 STAGING_ACTIVITY_CODE（4 位數字），再重新部署。'};
  return null;
 }
 async function body(request){const s=await request.text();if(s.length>65536)throw new UserError('資料過大',413);try{return JSON.parse(s)}catch{throw new UserError('資料格式不正確')}}
@@ -29,7 +40,9 @@ export default{async fetch(request,env){const url=new URL(request.url);try{
  }
  if(url.pathname==='/api/new'&&request.method==='POST'){
   const problem=setupProblem(env);if(problem)return secure(json(problem,503),url);
-  if(await digest(request.headers.get('Authorization')||'')!==await digest('Bearer '+env.SETUP_KEY))throw new UserError('活動管理碼不正確',403);
+  if(createRateLimited(request))throw new UserError('嘗試次數過多，請 10 分鐘後再試。',429);
+  if(await digest(request.headers.get('Authorization')||'')!==await digest('Bearer '+env.ACTIVITY_CODE)){recordCreateFailure(request);throw new UserError('活動管理碼不正確',403)}
+  createFailures.delete(request.headers.get('CF-Connecting-IP')||'unknown');
   const room=token().slice(0,24),adminKey=token(),stub=env.ROOMS.get(env.ROOMS.idFromName(room));
   await stub.initialize(await digest(adminKey));
   return secure(json({room,host:url.origin+'/r/'+room+'/host#key='+adminKey,join:url.origin+'/r/'+room+'/join?room='+room,screen:url.origin+'/r/'+room+'/screen'}),url);
