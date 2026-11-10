@@ -89,7 +89,9 @@ export class WordCloudRoom extends DurableObject{
   if(historyOpenMatch&&request.method==='POST'){const input=await body(request);return reply(json({ok:true,...this.core.setHistoryOpen(historyOpenMatch[1],!!input.open)}))}
   const historyRenameMatch=path.match(/^\/api\/admin\/history\/([a-f0-9-]{36})\/rename$/);
   if(historyRenameMatch&&request.method==='POST'){const input=await body(request);return reply(json(this.core.renameHistory(historyRenameMatch[1],input.title)))}
-  const historyRestoreMatch=path.match(/^\/api\/admin\/history\/([a-f0-9-]{36})\/restore$/);\n  if(historyRestoreMatch&&request.method==='POST')return reply(json(this.core.restoreHistory(historyRestoreMatch[1])));\n  const historyMatch=path.match(/^\/api\/admin\/history\/([a-f0-9-]{36})$/);
+  const historyRestoreMatch=path.match(/^\/api\/admin\/history\/([a-f0-9-]{36})\/restore$/);
+  if(historyRestoreMatch&&request.method==='POST')return reply(json(this.core.restoreHistory(historyRestoreMatch[1])));
+  const historyMatch=path.match(/^\/api\/admin\/history\/([a-f0-9-]{36})$/);
   if(historyMatch&&request.method==='GET')return reply(json(this.core.historyDetail(historyMatch[1])));
   if(historyMatch&&request.method==='DELETE')return reply(json(this.core.deleteHistory(historyMatch[1])));
   if(path==='/api/admin/history-settings'&&request.method==='POST'){const input=await body(request);return reply(json(this.core.setParticipantHistoryEnabled(!!input.enabled)))}
