@@ -68,6 +68,10 @@ export class WordCloudRoom extends DurableObject{
   const join=url.origin+'/r/'+room+'/join?room='+room,shortJoin=publicJoinRoom(this.env)===room?url.origin+'/join':undefined,shortHost=shortJoin?url.origin+'/host':undefined;
   if(path==='/api/state'&&request.method==='GET')return reply(json(this.core.state(voter)));
   if(path==='/api/my/history'&&request.method==='GET')return reply(json(this.core.participantHistory(voter,{limit:url.searchParams.get('limit'),cursor:url.searchParams.get('cursor')||'0'})));
+  const publicHistoryMatch=path.match(/^\/api\/history\/([a-f0-9-]{36})$/);
+  if(publicHistoryMatch&&request.method==='GET')return reply(json(this.core.archivedDetail(publicHistoryMatch[1],voter)));
+  const publicHistoryAction=path.match(/^\/api\/history\/([a-f0-9-]{36})\/(submit|like)$/);
+  if(publicHistoryAction&&request.method==='POST'){const input=await body(request);const now=Date.now(),recent=(this.rates.get(voter)||[]).filter(t=>now-t<10000);if(recent.length>=10)throw new UserError('送出太快囉，請稍等 10 秒',429);this.rates.set(voter,[...recent,now]);const result=publicHistoryAction[2]==='submit'?this.core.archivedSubmit(publicHistoryAction[1],input,voter):this.core.archivedLike(publicHistoryAction[1],input,voter);return reply(json(result))}
 
   if(path==='/api/join'&&request.method==='GET')return reply(json({join,shortJoin,room}));
   if(path==='/api/admin/config')return reply(json({links:[join],join,shortJoin,shortHost,dataPath:'活動雲端儲存',version:'1.3.0',online:true,questions:meta.questions,participantHistoryEnabled:meta.participantHistoryEnabled!==false}));
