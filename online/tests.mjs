@@ -54,11 +54,11 @@ test('archived feedback follows its own access state and is independent of the l
  const c=room(),owner='c'.repeat(32),sender='d'.repeat(32),round=c.meta().round;
  c.submit({text:'原始想法',round},owner);
  const topic=c.action({action:'snapshot'}).topic;
- c.setHistoryAccess(topic.id,true);
+ c.setHistoryAccess(topic.id,'open');
  c.archivedSubmit(topic.id,{text:'歷史回訪想法'},owner);
  c.action({action:'toggle'});
  const created=c.createWordFeedback({word:'歷史回訪想法',body:'歷史主題仍獨立開放。',historyId:topic.id},sender,'回訪者');
  assert.equal(created.notified,1);
- c.setHistoryAccess(topic.id,false);
+ c.setHistoryAccess(topic.id,'view');
  assert.throws(()=>c.createWordFeedback({word:'歷史回訪想法',body:'已關閉',historyId:topic.id},sender,'回訪者'),/停止互動/);
 });
