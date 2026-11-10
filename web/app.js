@@ -225,13 +225,14 @@ function renderHistoryCards(items,cardsId,statusId,detailId,prevId,nextId,pageId
    card.append(restore);
   }else{
    const b=document.createElement('button');b.type='button';b.className='secondary';b.textContent='預覽／重播投影';b.onclick=()=>loadHistoryDetail(item.id,detailId,statusId);
+   const oneExport=document.createElement('button');oneExport.type='button';oneExport.className='secondary';oneExport.textContent='下載這筆 JSON';oneExport.onclick=()=>exportOneHistory(item.id,'json');
    const rename=document.createElement('button');rename.type='button';rename.className='secondary';rename.textContent='重新命名';
    rename.onclick=async()=>{const title=await promptUI('請輸入新的快照名稱：',item.title||item.question||'');if(title===null)return;try{await api('/api/admin/history/'+encodeURIComponent(item.id)+'/rename',{method:'POST',body:{title},admin:true});await loadHistoryPage(false,cardsId,statusId,detailId,prevId,nextId,pageId);historyMessage(statusId,'快照名稱已更新。')}catch(e){historyError('重新命名快照失敗',e,statusId)}};
    const toggle=document.createElement('button');toggle.type='button';toggle.className=item.interactiveOpen?'secondary':'primary';toggle.textContent=item.interactiveOpen?'暫停此歷史頁':'開放此歷史頁';
    toggle.onclick=async()=>{toggle.disabled=true;try{await api('/api/admin/history/'+encodeURIComponent(item.id)+'/open',{method:'POST',body:{open:!item.interactiveOpen},admin:true});await loadHistoryPage(false,cardsId,statusId,detailId,prevId,nextId,pageId)}catch(e){historyError('更新歷史頁狀態失敗',e,statusId);toggle.disabled=false}};
    const trash=document.createElement('button');trash.type='button';trash.className='danger';trash.textContent='移至回收區';
    trash.onclick=async()=>{if(!await confirmUI('這筆歷史資料會移至回收區，不會永久刪除，之後可以還原。確定？'))return;trash.disabled=true;try{await api('/api/admin/history/'+encodeURIComponent(item.id),{method:'DELETE',admin:true});await loadHistoryPage(true,cardsId,statusId,detailId,prevId,nextId,pageId)}catch(e){historyError('移至回收區失敗',e,statusId);trash.disabled=false}};
-   card.append(b,rename,toggle,trash);
+   card.append(b,oneExport,rename,toggle,trash);
   }
   cards.append(card);
  });
@@ -246,7 +247,7 @@ async function loadHistoryDetail(id,detailId,statusId){
   if(!item||typeof item.id!=='string'||typeof item.question!=='string'||!Array.isArray(item.words))throw new Error('歷史快照內容格式不正確。');
   for(const w of item.words)if(!w||typeof w.text!=='string'||!Number.isFinite(w.count)||!Number.isFinite(w.likes))throw new Error('歷史快照含有無效詞語資料。');
   const root=historyEl(detailId);if(!root){historyMessage(statusId,'歷史檢視區尚未載入；主持台其他功能仍可使用。');return}
-  root.replaceChildren();root.hidden=false;const h=document.createElement('h3');h.textContent=item.title||item.question;const q=document.createElement('p');q.textContent='題目：'+item.question;const meta=document.createElement('p');meta.textContent=new Date(item.createdAt).toLocaleString('zh-TW')+' · '+item.responses+' 次投稿 · '+item.likesTotal+' 個讚同';const list=document.createElement('div');list.className='word-list';item.words.forEach(w=>{const chip=document.createElement('div');chip.className='word-chip';const word=document.createElement('span');word.textContent=w.text;const count=document.createElement('strong');count.textContent='投稿 '+w.count+' · 讚同 '+w.likes+' · 熱度 '+(w.count+w.likes);chip.append(word,count);list.append(chip)});const use=document.createElement('button');use.type='button';use.className='primary';use.textContent='載入主持台並繼續互動（保留原成果）';use.onclick=async()=>{if(!await confirmUI('將目前活動自動保存，再載入這個歷史主題及原有投稿／讚同數，並繼續使用目前 QR Code。確定繼續？'))return;use.disabled=true;try{await api('/api/admin/action',{method:'POST',body:{action:'historyUse',id:item.id},admin:true});toast('已載入歷史主題，原成果保留，現在可繼續投稿。');location.href=API_ROOT+'/host#key='+encodeURIComponent(key)}catch(e){toast(e.message);use.disabled=false}};root.append(h,q,meta,list,use);historyMessage(statusId,'已載入快照；可檢視原成果，或載入主持台繼續互動。');
+  root.replaceChildren();root.hidden=false;const h=document.createElement('h3');h.textContent=item.title||item.question;const q=document.createElement('p');q.textContent='題目：'+item.question;const meta=document.createElement('p');meta.textContent=new Date(item.createdAt).toLocaleString('zh-TW')+' · '+item.responses+' 次投稿 · '+item.likesTotal+' 個讚同';const list=document.createElement('div');list.className='word-list';item.words.forEach(w=>{const chip=document.createElement('div');chip.className='word-chip';const word=document.createElement('span');word.textContent=w.text;const count=document.createElement('strong');count.textContent='投稿 '+w.count+' · 讚同 '+w.likes+' · 熱度 '+(w.count+w.likes);chip.append(word,count);list.append(chip)});const use=document.createElement('button');use.type='button';use.className='primary';use.textContent='載入主持台並繼續互動（保留原成果）';use.onclick=async()=>{if(!await confirmUI('將目前活動自動保存，再載入這個歷史主題及原有投稿／讚同數，並繼續使用目前 QR Code。確定繼續？'))return;use.disabled=true;try{await api('/api/admin/action',{method:'POST',body:{action:'historyUse',id:item.id},admin:true});toast('已載入歷史主題，原成果保留，現在可繼續投稿。');location.href=API_ROOT+'/host#key='+encodeURIComponent(key)}catch(e){toast(e.message);use.disabled=false}};const exportJSON=document.createElement('button');exportJSON.type='button';exportJSON.className='secondary';exportJSON.textContent='下載這筆 JSON';exportJSON.onclick=()=>exportOneHistory(item.id,'json');const exportCSV=document.createElement('button');exportCSV.type='button';exportCSV.className='secondary';exportCSV.textContent='下載這筆 CSV';exportCSV.onclick=()=>exportOneHistory(item.id,'csv');const actions=document.createElement('div');actions.className='inline-actions';actions.append(exportJSON,exportCSV);root.append(h,q,meta,list,actions,use);historyMessage(statusId,'已載入快照；可下載單筆資料、檢視原成果，或載入主持台繼續互動。');
  }catch(e){historyError('無法載入快照',e,statusId)}
 }
 async function loadHistoryPage(reset=false,cardsId='hostHistoryCards',statusId='hostHistoryStatus',detailId='hostHistoryDetail',prevId='hostHistoryPrev',nextId='hostHistoryNext',pageId='hostHistoryPageLabel'){
@@ -283,6 +284,19 @@ async function collectHistoryForExport(){
   historyMessage('hostHistoryStatus','正在整理歷史資料：已讀取 '+records.length+' 筆……');
  }while(cursor);
  return records;
+}
+async function exportOneHistory(id,format){
+ try{
+  const response=await api('/api/admin/history/'+encodeURIComponent(id),{admin:true});
+  if(!response.ok)throw new Error('讀取歷史快照失敗（HTTP '+response.status+'）');
+  const item=await response.json();
+  if(!item||typeof item.id!=='string'||!Array.isArray(item.words))throw new Error('歷史快照內容格式不正確');
+  const stamp=String(item.createdAt||new Date().toISOString()).slice(0,10);
+  const safe=String(item.title||item.question||'歷史主題').replace(/[\\\\/:*?"<>|]/g,'_').slice(0,40);
+  if(format==='csv')downloadBlob(new Blob([historyCSV([item])],{type:'text/csv;charset=utf-8'}),'Junba_'+safe+'_'+stamp+'.csv');
+  else downloadBlob(new Blob([JSON.stringify({schema:'junba-wordcloud-history-item-v1',item},null,2)],{type:'application/json;charset=utf-8'}),'Junba_'+safe+'_'+stamp+'.json');
+  historyMessage('hostHistoryStatus','已下載單筆歷史：'+(item.title||item.question));
+ }catch(e){historyError('下載單筆歷史失敗',e,'hostHistoryStatus')}
 }
 function historyCSV(records){
  const q=v=>'"'+String(v??'').replace(/"/g,'""')+'"';
