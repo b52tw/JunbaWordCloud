@@ -255,7 +255,7 @@ if(mode==='host'){
   catch(e){toast(e.message)}
  }
 
- async function loadMasterBank(){const q=$('#masterBankSearch')?.value||'',category=$('#masterBankCategory')?.value||'';try{const response=await api('/api/admin/master-bank?q='+encodeURIComponent(q)+'&category='+encodeURIComponent(category),{admin:true}),data=await response.json(),select=$('#masterBankList');select.replaceChildren();(data.items||[]).forEach(item=>{const option=document.createElement('option');option.value=item.id;option.textContent='['+item.category+'] '+item.question;option.dataset.question=item.question;option.dataset.category=item.category;select.append(option)})}catch(e){toast('雲端總題庫載入失敗：'+e.message)}}
+ async function loadMasterBank(){const q=$('#masterBankSearch')?.value||'';try{const response=await api('/api/admin/master-bank?q='+encodeURIComponent(q),{admin:true}),data=await response.json(),select=$('#masterBankList');select.replaceChildren();(data.items||[]).forEach(item=>{const option=document.createElement('option');option.value=item.id;option.textContent='['+item.category+'] '+item.question;option.dataset.question=item.question;option.dataset.category=item.category;select.append(option)})}catch(e){toast('雲端總題庫載入失敗：'+e.message)}}
  function renderQuestionBank(){const select=$('#questionBank'),previous=select.value;select.replaceChildren();const questions=config.questions||[];questions.forEach(q=>{const o=document.createElement('option');o.value=q;o.textContent=q;select.append(o)});if(questions.includes(previous))select.value=previous;else if(state&&questions.includes(state.question))select.value=state.question;$('#bankCount').textContent=questions.length+' / 100';['bankLoad','bankUse','bankDelete','bankExport'].forEach(id=>$('#'+id).disabled=!questions.length);}
  // 歷史功能採漸進式增強：歷史 DOM 缺失時停用該區塊，不影響主持台其他功能。
  try{
@@ -271,7 +271,7 @@ if(mode==='host'){
   if(launchHistory)launchHistory.onclick=()=>window.open(API_ROOT+'/history#key='+encodeURIComponent(key),'junba-history');
   if(IS_CLOUD){if(launchHistory)launchHistory.hidden=false}else{if(saveSnapshot)saveSnapshot.hidden=true;if(openHistory)openHistory.hidden=true}
  }catch(e){console.error('[History] 歷史介面初始化失敗；主持台核心功能仍繼續執行。',e)}
- $('#masterBankSearch').oninput=()=>loadMasterBank();$('#masterBankCategory').onchange=()=>loadMasterBank();
+ $('#masterBankSearch').oninput=()=>loadMasterBank();
  $('#masterBankList').onchange=()=>{const option=$('#masterBankList').selectedOptions[0];if(option)$('#masterBankCategory').value=option.dataset.category||'未分類'};
  $('#masterBankSave').onclick=async()=>{const option=$('#masterBankList').selectedOptions[0],question=$('#question').value.trim();try{if(!question)throw Error('請先在活動提問欄輸入題目。');const payload={question,category:$('#masterBankCategory').value||'未分類'};if(option)payload.id=option.value;await api('/api/admin/master-bank',{method:'POST',admin:true,body:payload});await loadMasterBank();if(option)$('#masterBankList').value=option.value;toast(option?'已更新選取的雲端總題庫題目。':'已新增至雲端總題庫，可跨活動使用。')}catch(e){toast(e.message)}};
  $('#masterBankLoad').onclick=()=>{const option=$('#masterBankList').selectedOptions[0];if(!option)return toast('請先選擇雲端總題庫題目。');$('#question').value=option.dataset.question;$('#masterBankCategory').value=option.dataset.category||'未分類';$('#question').focus();toast('已帶入編輯欄，可修改後套用或儲存。')};
