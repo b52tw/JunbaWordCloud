@@ -69,7 +69,7 @@ const participantStorageKey='junba-participant-name:'+participantRoom;let partic
 function fontFamily(text){const choice=state.font==='mixed'?['round','serif','sans'][hash(text)%3]:(state.font||'round');return choice==='round'?'JunbaRound, "Microsoft JhengHei", sans-serif':choice==='serif'?'JunbaSerif, "Noto Serif CJK TC", serif':'"Microsoft JhengHei", "PingFang TC", sans-serif'}
 function cloudLines(text){const chars=[...text],lines=[];for(let i=0;i<chars.length;i+=12)lines.push(chars.slice(i,i+12).join(''));return lines;}
 function layoutWords(ctx,words,W,H,scale=1){
- if(!words.length)return [];const clouds=(state.style||'clouds')==='clouds',largest=heat(words[0]);
+ if(!words.length)return [];const style=state.style||'clouds',clouds=style==='clouds',largest=heat(words[0]);
  const weightedArea=words.reduce((sum,w)=>sum+Math.max(2,[...w.text].length)*Math.pow(.4+.6*Math.sqrt(heat(w)/largest),2),0);
  const ideal=Math.min(W*.14,H*.23,112,Math.sqrt(W*H*(clouds?.26:.42)/Math.max(6,weightedArea*1.4)))*scale;
  const grid=5,gw=Math.ceil(W/grid),gh=Math.ceil(H/grid),occ=new Uint8Array(gw*gh),positions=[];
