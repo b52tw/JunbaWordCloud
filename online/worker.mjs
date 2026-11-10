@@ -47,6 +47,7 @@ export default{async fetch(request,env){const url=new URL(request.url);try{
   await stub.initialize(await digest(adminKey));
   return secure(json({room,host:url.origin+'/r/'+room+'/host#key='+adminKey,join:url.origin+'/r/'+room+'/join?room='+room,screen:url.origin+'/r/'+room+'/screen'}),url);
  }
+ const shortMatch=url.pathname.match(/^\\/(p|h|s)\\/([a-z0-9]{12,40})\\/?$/);if(shortMatch&&['GET','HEAD'].includes(request.method)){const room=shortMatch[2],target=shortMatch[1]==='p'?'/r/'+room+'/join?room='+room:shortMatch[1]==='h'?'/r/'+room+'/host':'/r/'+room+'/screen';return secure(new Response(null,{status:302,headers:{Location:url.origin+target,'Cache-Control':'no-store'}}),url)}
  const match=url.pathname.match(/^\/r\/([a-z0-9]{12,40})(\/.*)?$/);
  if(match){const path=match[2]||'/host';if(path.startsWith('/api/')||path==='/qr.png'||path==='/ws'){const stub=env.ROOMS.get(env.ROOMS.idFromName(match[1]));return secure(await stub.fetch(request),url)}
   if(path==='/lite')return secure(await env.ASSETS.fetch(new Request(url.origin+'/legacy',request)),url);
@@ -65,7 +66,7 @@ export class WordCloudRoom extends DurableObject{
  try{
   const meta=this.core.meta();if(!meta)throw new UserError('活動不存在，請確認 QR Code',404);
   if(path.startsWith('/api/admin/')){const key=(request.headers.get('Authorization')||'').replace(/^Bearer /,'');if(await digest(key)!==meta.adminHash)throw new UserError('主持台憑證無效',403)}
-  const join=url.origin+'/r/'+room+'/join?room='+room,shortJoin=publicJoinRoom(this.env)===room?url.origin+'/join':undefined,shortHost=shortJoin?url.origin+'/host':undefined;
+  const join=url.origin+'/r/'+room+'/join?room='+room,shortJoin=url.origin+'/p/'+room,shortHost=url.origin+'/h/'+room;
   if(path==='/api/state'&&request.method==='GET')return reply(json(this.core.state(voter)));
   if(path==='/api/my/history'&&request.method==='GET')return reply(json(this.core.participantHistory(voter,{limit:url.searchParams.get('limit'),cursor:url.searchParams.get('cursor')||'0'})));
   const publicHistoryMatch=path.match(/^\/api\/history\/([a-f0-9-]{36})$/);
