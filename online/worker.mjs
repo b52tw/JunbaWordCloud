@@ -67,9 +67,13 @@ export class WordCloudRoom extends DurableObject{
   if(path.startsWith('/api/admin/')){const key=(request.headers.get('Authorization')||'').replace(/^Bearer /,'');if(await digest(key)!==meta.adminHash)throw new UserError('主持台憑證無效',403)}
   const join=url.origin+'/r/'+room+'/join?room='+room,shortJoin=publicJoinRoom(this.env)===room?url.origin+'/join':undefined,shortHost=shortJoin?url.origin+'/host':undefined;
   if(path==='/api/state'&&request.method==='GET')return reply(json(this.core.state(voter)));
+  if(path==='/api/my/history'&&request.method==='GET')return reply(json(this.core.participantHistory(voter,{limit:url.searchParams.get('limit'),cursor:url.searchParams.get('cursor')||'0'})));
+
   if(path==='/api/join'&&request.method==='GET')return reply(json({join,shortJoin,room}));
   if(path==='/api/admin/config')return reply(json({links:[join],join,shortJoin,shortHost,dataPath:'活動雲端儲存',version:'1.2.0',online:true,questions:meta.questions}));
   if(path==='/api/admin/history'&&request.method==='GET')return reply(json(this.core.history({limit:url.searchParams.get('limit'),cursor:url.searchParams.get('cursor')||'0'})));
+  const historyOpenMatch=path.match(/^\/api\/admin\/history\/([a-f0-9-]{36})\/open$/);
+  if(historyOpenMatch&&request.method==='POST'){const input=await body(request);return reply(json({ok:true,...this.core.setHistoryOpen(historyOpenMatch[1],!!input.open)}))}
   const historyMatch=path.match(/^\/api\/admin\/history\/([a-f0-9-]{36})$/);
   if(historyMatch&&request.method==='GET')return reply(json(this.core.historyDetail(historyMatch[1])));
 
@@ -86,7 +90,7 @@ export class WordCloudRoom extends DurableObject{
    if(path==='/api/submit'||path==='/api/like'){
     if(input.room!==room)throw new UserError('活動連結不正確，請重新掃碼',403);
     const now=Date.now(),recent=(this.rates.get(voter)||[]).filter(t=>now-t<10000);if(recent.length>=10)throw new UserError('送出太快囉，請稍等 10 秒',429);this.rates.set(voter,[...recent,now]);if(this.rates.size>5000)for(const [k,v]of this.rates)if(now-v[v.length-1]>10000)this.rates.delete(k);
-    if(path==='/api/submit')this.core.submit(input);else this.core.like(input,voter);
+    if(path==='/api/submit')this.core.submit(input,voter);else this.core.like(input,voter);
    }else if(path==='/api/admin/action')this.core.action(input);else throw new UserError('不支援的操作',404);
    this.broadcast();return reply(json({ok:true,liked:this.core.liked(voter)}));
   }
