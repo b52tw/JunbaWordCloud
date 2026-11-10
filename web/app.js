@@ -228,13 +228,11 @@ function renderHistoryCards(items,cardsId,statusId,detailId,prevId,nextId,pageId
   }else{
    const b=document.createElement('button');b.type='button';b.className='secondary';b.textContent='預覽／重播投影';b.onclick=()=>loadHistoryDetail(item.id,detailId,statusId);
    const oneExport=document.createElement('button');oneExport.type='button';oneExport.className='secondary';oneExport.textContent='下載這筆 JSON';oneExport.onclick=()=>exportOneHistory(item.id,'json');
-   const rename=document.createElement('button');rename.type='button';rename.className='secondary';rename.textContent='重新命名';
-   rename.onclick=async()=>{const title=await promptUI('請輸入新的快照名稱：',item.title||item.question||'');if(title===null)return;try{await api('/api/admin/history/'+encodeURIComponent(item.id)+'/rename',{method:'POST',body:{title},admin:true});await loadHistoryPage(false,cardsId,statusId,detailId,prevId,nextId,pageId);historyMessage(statusId,'快照名稱已更新。')}catch(e){historyError('重新命名快照失敗',e,statusId)}};
-   const toggle=document.createElement('button');toggle.type='button';toggle.className=item.interactiveOpen?'secondary':'primary';toggle.textContent=item.interactiveOpen?'暫停此歷史頁':'開放此歷史頁';
+      const toggle=document.createElement('button');toggle.type='button';toggle.className=item.interactiveOpen?'secondary':'primary';toggle.textContent=item.interactiveOpen?'暫停此歷史頁':'開放此歷史頁';
    toggle.onclick=async()=>{toggle.disabled=true;try{await api('/api/admin/history/'+encodeURIComponent(item.id)+'/open',{method:'POST',body:{open:!item.interactiveOpen},admin:true});await loadHistoryPage(false,cardsId,statusId,detailId,prevId,nextId,pageId)}catch(e){historyError('更新歷史頁狀態失敗',e,statusId);toggle.disabled=false}};
    const trash=document.createElement('button');trash.type='button';trash.className='danger';trash.textContent='移至回收區';
    trash.onclick=async()=>{if(!await confirmUI('這筆歷史資料會移至回收區，不會永久刪除，之後可以還原。確定？'))return;trash.disabled=true;try{await api('/api/admin/history/'+encodeURIComponent(item.id),{method:'DELETE',admin:true});await loadHistoryPage(true,cardsId,statusId,detailId,prevId,nextId,pageId)}catch(e){historyError('移至回收區失敗',e,statusId);trash.disabled=false}};
-   card.append(b,oneExport,rename,toggle,trash);
+   card.append(b,oneExport,toggle,trash);
   }
   cards.append(card);
  });
