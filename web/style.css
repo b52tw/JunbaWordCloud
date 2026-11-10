@@ -123,3 +123,5 @@
 .cloud-stage canvas,.screen-cloud canvas,.participant-cloud canvas{filter:contrast(1.12) saturate(1.08)}.participant-cloud canvas{touch-action:manipulation;cursor:crosshair}
 
 .game-endorse-row{border:1px solid #e7c98d;background:#fffaf0;border-radius:12px;padding:10px}.game-endorse-row .like-button{display:inline-flex!important;min-width:120px;justify-content:center;font-weight:900}.game-endorse-row .endorse-info{margin-bottom:6px}.participant-cloud canvas{touch-action:manipulation}
+
+.game-endorse-row{border:1px solid #e7c98d;background:#fffaf0;border-radius:12px;padding:10px}.game-endorse-row .like-button{display:inline-flex!important;min-width:120px;justify-content:center;font-weight:900}
