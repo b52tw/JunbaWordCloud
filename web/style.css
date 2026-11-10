@@ -102,3 +102,10 @@
 .feedback-entry-footer{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-top:10px;font-size:11px;color:var(--muted)}
 .feedback-entry-footer button{min-height:36px;padding:7px 11px}
 @media(max-width:520px){.participant-quick-actions{width:100%;justify-content:space-between}.notification-button{flex:1;justify-content:center}.feedback-dialog{padding:18px}.feedback-entry-heading{display:grid;gap:4px}}
+
+.endorse-row{position:relative;overflow:visible}
+.hit-burst{position:absolute;right:76px;top:50%;z-index:8;font-size:24px;pointer-events:none;animation:junba-hit-burst .9s cubic-bezier(.2,.8,.2,1) forwards;filter:drop-shadow(0 2px 3px #0003)}
+.like-button.hit-success{animation:junba-hit-button .45s ease}
+@keyframes junba-hit-burst{0%{opacity:0;transform:translateY(10px) scale(.35) rotate(-12deg)}25%{opacity:1;transform:translateY(-10px) scale(1.25) rotate(8deg)}100%{opacity:0;transform:translateY(-42px) scale(.8) rotate(18deg)}}
+@keyframes junba-hit-button{0%,100%{transform:scale(1)}45%{transform:scale(1.16)}}
+@media(prefers-reduced-motion:reduce){.hit-burst,.like-button.hit-success{animation:none!important}}
