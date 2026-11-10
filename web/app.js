@@ -2,7 +2,7 @@
 const $=s=>document.querySelector(s);
 const route=location.pathname.replace(/\/$/,'');const match=route.match(/^\/r\/([a-z0-9]{12,40})(?:\/|$)/);const cloudRoom=match?match[1]:$('meta[name="junba-room"]')?.content||'';const API_ROOT=cloudRoom?'/r/'+cloudRoom:'';const IS_CLOUD=!!cloudRoom;
 const participantRoom=new URLSearchParams(location.search).get('room')||cloudRoom;
-const mode=route.endsWith('/join')?'join':route.endsWith('/screen')?'screen':route.endsWith('/history')?'history':'host';
+const mode=route.endsWith('/join')?'join':route.endsWith('/screen')?'screen':route.endsWith('/my-history')?'my-history':route.endsWith('/history')?'history':'host';
 $('#'+mode).hidden=false;
 const auth=new URLSearchParams(location.hash.slice(1)).get('key');
 if(auth){sessionStorage.setItem('junba-host-key',auth);history.replaceState(null,'',location.pathname+location.search)}
@@ -198,6 +198,11 @@ if(mode==='host'){
   if(next)next.onclick=historyNext;
   loadHistoryPage(true,'historyCards','historyStatus','historyDetail','historyPrev','historyNext','historyPageLabel');
  }catch(e){historyError('歷史頁初始化失敗',e,'historyStatus')}
+
+}else if(mode==='my-history'){
+ const status=$('#myHistoryStatus'),cards=$('#myHistoryCards'),detail=$('#myHistoryDetail');$('#myHistoryHome').href=API_ROOT+'/join?room='+encodeURIComponent(participantRoom);$('#myHistoryLink')?.setAttribute('href',API_ROOT+'/my-history');
+ const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+ (async()=>{try{const page=await(await api('/api/my/history?limit=50')).json();if(page.disabled){status.textContent='主持人目前已關閉個人歷史功能。';return}if(!page.items.length){status.textContent='目前沒有可顯示的歷史互動紀錄。';return}status.textContent='找到 '+page.items.length+' 筆歷史互動。';cards.replaceChildren();page.items.forEach(item=>{const card=document.createElement('button');card.className='history-card';card.type='button';card.innerHTML='<strong>'+esc(item.title)+'</strong><span>'+esc(new Date(item.createdAt).toLocaleString())+'</span><small>投稿 '+item.submissions+' · 讚同 '+item.likes+' · '+(item.accessMode==='open'?'開放互動':'僅供查看')+'</small>';card.onclick=async()=>{try{const topic=await(await api('/api/history/'+item.id)).json();detail.hidden=false;detail.innerHTML='<h2>'+esc(topic.title)+'</h2><p>'+esc(topic.question)+'</p><p>原始成果：'+topic.words.map(w=>esc(w.text)+'（'+w.count+'）').join('、')+'</p>'+(topic.canInteract?'<form id="archiveSubmitForm"><label>再次互動（1～3 個詞語）</label><textarea id="archiveWords" required></textarea><button class="primary">送出新回合</button></form>':'<p>此主題目前僅供查看。</p>')+(topic.interactionState?'<h3>最新互動回合</h3><p>'+topic.interactionState.words.map(w=>esc(w.text)+'（投稿 '+w.count+' · 讚同 '+w.likes+'）').join('、')+'</p>':'');const form=$('#archiveSubmitForm');if(form)form.onsubmit=async e=>{e.preventDefault();try{await api('/api/history/'+item.id+'/submit',{method:'POST',body:{text:$('#archiveWords').value}});toast('已建立／更新獨立互動回合。');card.click()}catch(err){toast(err.message)}};}catch(e){toast(e.message)}};cards.append(card)})}catch(e){status.textContent=e.message}})();
 }else if(mode==='join'){
  const room=participantRoom;
  api('/api/join').then(r=>r.json()).then(v=>{ready=new URL(v.join).searchParams.get('room')===room;updateSubmit();if(state)renderEndorsements();if(!ready){$('#submitStatus').textContent='活動連結已失效，請重新掃描現場 QR Code。';$('#submitStatus').className='submit-status error'}}).catch(()=>setConnection(false));
