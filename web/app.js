@@ -263,6 +263,50 @@ async function loadHistoryPage(reset=false,cardsId='hostHistoryCards',statusId='
 }
 function reloadHistoryPage(){return mode==='history'?loadHistoryPage(false,'historyCards','historyStatus','historyDetail','historyPrev','historyNext','historyPageLabel'):loadHistoryPage(false)}
 function historyNext(){if(!historyState.next||historyState.busy)return;historyState.stack.push(historyState.cursor);historyState.cursor=historyState.next;historyState.page++;reloadHistoryPage()}
+
+async function collectHistoryForExport(){
+ const from=historyEl('historyFrom')?.value||'',to=historyEl('historyTo')?.value||'';
+ const filter=(from?'&from='+encodeURIComponent(from):'')+(to?'&to='+encodeURIComponent(to):'');
+ const records=[];let cursor='0',pageCount=0;
+ do{
+  const response=await api('/api/admin/history?limit=50&cursor='+encodeURIComponent(cursor)+filter,{admin:true});
+  if(!response.ok)throw new Error('讀取歷史清單失敗（HTTP '+response.status+'）');
+  const page=await response.json();
+  if(!Array.isArray(page.items))throw new Error('歷史清單格式不正確');
+  for(const item of page.items){
+   const detailResponse=await api('/api/admin/history/'+encodeURIComponent(item.id),{admin:true});
+   if(!detailResponse.ok)throw new Error('讀取「'+(item.title||item.question||item.id)+'」失敗');
+   records.push(await detailResponse.json());
+  }
+  cursor=page.nextCursor;pageCount++;
+  if(pageCount>200)throw new Error('歷史筆數過多，請縮小日期範圍後再匯出');
+  historyMessage('hostHistoryStatus','正在整理歷史資料：已讀取 '+records.length+' 筆……');
+ }while(cursor);
+ return records;
+}
+function historyCSV(records){
+ const q=v=>'"'+String(v??'').replace(/"/g,'""')+'"';
+ const rows=[['快照名稱','活動題目','建立時間','投稿次數','讚同數','詞語','詞語投稿數','詞語讚同數']];
+ for(const item of records)for(const word of (Array.isArray(item.words)?item.words:[]))
+  rows.push([item.title,item.question,item.createdAt,item.responses,item.likesTotal,word.text,word.count,word.likes]);
+ return '\\uFEFF'+rows.map(row=>row.map(q).join(',')).join('\\r\\n');
+}
+async function exportHistory(format){
+ const buttons=['exportHistoryJSON','exportHistoryCSV'].map(id=>historyEl(id)).filter(Boolean);
+ buttons.forEach(b=>b.disabled=true);
+ try{
+  const records=await collectHistoryForExport();
+  if(!records.length){historyMessage('hostHistoryStatus','目前篩選條件沒有可匯出的歷史紀錄。');return}
+  const stamp=new Date().toISOString().slice(0,10);
+  if(format==='json'){
+   downloadBlob(new Blob([JSON.stringify({schema:'junba-wordcloud-history-v1',exportedAt:new Date().toISOString(),count:records.length,items:records},null,2)],{type:'application/json;charset=utf-8'}),'Junba_歷史主題_'+stamp+'.json');
+  }else{
+   downloadBlob(new Blob([historyCSV(records)],{type:'text/csv;charset=utf-8'}),'Junba_歷史主題_'+stamp+'.csv');
+  }
+  historyMessage('hostHistoryStatus','已匯出 '+records.length+' 筆歷史主題。');
+ }catch(e){historyError('匯出歷史資料失敗',e,'hostHistoryStatus')}
+ finally{buttons.forEach(b=>b.disabled=false)}
+}
 function historyPrev(){if(!historyState.stack.length||historyState.busy)return;historyState.cursor=historyState.stack.pop();historyState.page=Math.max(1,historyState.page-1);reloadHistoryPage()}
 function downloadBlob(blob,name){const url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download=name;a.style.display='none';document.body.append(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),1500)}
 async function downloadAdmin(path,name){try{const r=await api(path,{admin:true});downloadBlob(await r.blob(),name)}catch(e){toast(e.message)}}
