@@ -46,3 +46,5 @@
 @media(prefers-reduced-motion:reduce){.cloud-stage:after,.cloud-stage:has(canvas.visual-motion-wave) canvas,.cloud-stage:has(canvas.visual-motion-pulse) canvas,.cloud-stage:has(canvas.visual-motion-lively) canvas{animation:none!important}}
 
 .cloud-stage[data-depth="low"] canvas{filter:drop-shadow(0 4px 8px rgba(0,190,230,.10))}.cloud-stage[data-depth="medium"] canvas{filter:drop-shadow(0 10px 20px rgba(0,190,230,.2))}.cloud-stage[data-depth="high"] canvas{filter:drop-shadow(0 18px 30px rgba(0,190,230,.34))}.cloud-stage[data-depth="high"]{perspective:800px}.cloud-stage[data-depth="high"]:after{opacity:1;filter:hue-rotate(90deg) saturate(1.5)}
+
+.cloud-master-bank{margin:18px 0;padding:14px;border:1px solid #dce5ed;border-radius:14px;background:linear-gradient(145deg,#f8fcff,#eef6fb)}.cloud-master-bank>label:first-child{margin-top:0}.cloud-master-bank select{min-height:120px}.cloud-master-bank .bank-actions{display:grid;grid-template-columns:1fr 1fr;gap:7px;margin-top:10px}.cloud-master-bank .bank-actions button:last-child{grid-column:1/-1}.cloud-master-bank .field-hint{margin-bottom:0}
