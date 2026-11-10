@@ -195,7 +195,7 @@ function paint(){
 }
 let resizeTimer;window.addEventListener('resize',()=>{clearTimeout(resizeTimer);resizeTimer=setTimeout(paint,120)});
 
-const historyState={cursor:'0',stack:[],page:1,next:null,busy:false};
+const historyState={cursor:'0',stack:[],page:1,next:null,busy:false};let historyTrashMode=false;
 function historyEl(id){return document.getElementById(id)}
 function historyMessage(id,message){const el=historyEl(id);if(el)el.textContent=String(message||'')}
 function historyError(label,error,statusId){console.error('[History] '+label,error);historyMessage(statusId,error instanceof Error?error.message:'歷史功能暫時無法使用，請稍後再試。')}
@@ -204,8 +204,31 @@ function renderHistoryCards(items,cardsId,statusId,detailId,prevId,nextId,pageId
  if(!cards||!prev||!next||!pageLabel){historyMessage(statusId,'歷史介面尚未完整載入；主持台其他功能仍可使用。');return false}
  if(!Array.isArray(items))throw new Error('歷史列表格式不正確。');
  cards.replaceChildren();
- if(!items.length){const empty=document.createElement('p');empty.className='empty-list';empty.textContent='目前還沒有歷史快照。可手動保存，或在換題／清空前由系統自動保存。';cards.append(empty);}
- items.forEach(item=>{if(!item||typeof item.id!=='string')return;const card=document.createElement('section');card.className='history-card';const h=document.createElement('h3');h.textContent=String(item.title||item.question||'未命名快照');const p=document.createElement('p');const stamp=Date.parse(item.createdAt||'');p.textContent=String(item.question||'')+' · '+(Number.isFinite(stamp)?new Date(stamp).toLocaleString('zh-TW'):'時間未知');const meta=document.createElement('p');meta.textContent=(item.responses||0)+' 次投稿 · '+(item.likesTotal||0)+' 個讚同 · '+(item.wordCount||0)+' 個詞語';const b=document.createElement('button');b.type='button';b.className='secondary';b.textContent='預覽／重播投影';b.onclick=()=>loadHistoryDetail(item.id,detailId,statusId);const rename=document.createElement('button');rename.type='button';rename.className='secondary';rename.textContent='重新命名';rename.onclick=async()=>{const title=await promptUI('請輸入新的快照名稱：',item.title||item.question||'');if(title===null)return;try{await api('/api/admin/history/'+encodeURIComponent(item.id)+'/rename',{method:'POST',body:{title},admin:true});await loadHistoryPage(false,cardsId,statusId,detailId,prevId,nextId,pageId);historyMessage(statusId,'快照名稱已更新。')}catch(e){historyError('重新命名快照失敗',e,statusId)}};const toggle=document.createElement('button');toggle.type='button';toggle.className=item.interactiveOpen?'secondary':'primary';toggle.textContent=item.interactiveOpen?'暫停此歷史頁':'開放此歷史頁';toggle.onclick=async()=>{toggle.disabled=true;try{await api('/api/admin/history/'+encodeURIComponent(item.id)+'/open',{method:'POST',body:{open:!item.interactiveOpen},admin:true});await loadHistoryPage(false,cardsId,statusId,detailId,prevId,nextId,pageId)}catch(e){historyError('更新歷史頁狀態失敗',e,statusId);toggle.disabled=false}};card.append(h,p,meta,b,rename,toggle);cards.append(card)});
+ if(!items.length){const empty=document.createElement('p');empty.className='empty-list';empty.textContent=historyTrashMode?'回收區目前沒有紀錄。':'目前還沒有歷史快照。可手動保存，或在換題／清空前由系統自動保存。';cards.append(empty);}
+ items.forEach(item=>{
+  if(!item||typeof item.id!=='string')return;
+  const card=document.createElement('section');card.className='history-card';
+  const h=document.createElement('h3');h.textContent=String(item.title||item.question||'未命名快照');
+  const p=document.createElement('p');const stamp=Date.parse(item.createdAt||'');p.textContent=String(item.question||'')+' · '+(Number.isFinite(stamp)?new Date(stamp).toLocaleString('zh-TW'):'時間未知');
+  const meta=document.createElement('p');meta.textContent=(item.responses||0)+' 次投稿 · '+(item.likesTotal||0)+' 個讚同 · '+(item.wordCount||0)+' 個詞語';
+  card.append(h,p,meta);
+  if(item.deletedAt){
+   const state=document.createElement('p');state.textContent='已移至回收區：'+new Date(item.deletedAt).toLocaleString('zh-TW');card.append(state);
+   const restore=document.createElement('button');restore.type='button';restore.className='primary';restore.textContent='還原歷史紀錄';
+   restore.onclick=async()=>{restore.disabled=true;try{await api('/api/admin/history/'+encodeURIComponent(item.id)+'/restore',{method:'POST',body:{},admin:true});await loadHistoryPage(true,cardsId,statusId,detailId,prevId,nextId,pageId);historyMessage(statusId,'歷史紀錄已還原，並設為唯讀。')}catch(e){historyError('還原歷史紀錄失敗',e,statusId);restore.disabled=false}};
+   card.append(restore);
+  }else{
+   const b=document.createElement('button');b.type='button';b.className='secondary';b.textContent='預覽／重播投影';b.onclick=()=>loadHistoryDetail(item.id,detailId,statusId);
+   const rename=document.createElement('button');rename.type='button';rename.className='secondary';rename.textContent='重新命名';
+   rename.onclick=async()=>{const title=await promptUI('請輸入新的快照名稱：',item.title||item.question||'');if(title===null)return;try{await api('/api/admin/history/'+encodeURIComponent(item.id)+'/rename',{method:'POST',body:{title},admin:true});await loadHistoryPage(false,cardsId,statusId,detailId,prevId,nextId,pageId);historyMessage(statusId,'快照名稱已更新。')}catch(e){historyError('重新命名快照失敗',e,statusId)}};
+   const toggle=document.createElement('button');toggle.type='button';toggle.className=item.interactiveOpen?'secondary':'primary';toggle.textContent=item.interactiveOpen?'暫停此歷史頁':'開放此歷史頁';
+   toggle.onclick=async()=>{toggle.disabled=true;try{await api('/api/admin/history/'+encodeURIComponent(item.id)+'/open',{method:'POST',body:{open:!item.interactiveOpen},admin:true});await loadHistoryPage(false,cardsId,statusId,detailId,prevId,nextId,pageId)}catch(e){historyError('更新歷史頁狀態失敗',e,statusId);toggle.disabled=false}};
+   const trash=document.createElement('button');trash.type='button';trash.className='danger';trash.textContent='移至回收區';
+   trash.onclick=async()=>{if(!await confirmUI('這筆歷史資料會移至回收區，不會永久刪除，之後可以還原。確定？'))return;trash.disabled=true;try{await api('/api/admin/history/'+encodeURIComponent(item.id),{method:'DELETE',admin:true});await loadHistoryPage(true,cardsId,statusId,detailId,prevId,nextId,pageId)}catch(e){historyError('移至回收區失敗',e,statusId);trash.disabled=false}};
+   card.append(b,rename,toggle,trash);
+  }
+  cards.append(card);
+ });
  prev.disabled=historyState.stack.length===0;next.disabled=!historyState.next;pageLabel.textContent='第 '+historyState.page+' 頁';return true;
 }
 async function loadHistoryDetail(id,detailId,statusId){
@@ -225,7 +248,7 @@ async function loadHistoryPage(reset=false,cardsId='hostHistoryCards',statusId='
  if(reset){historyState.cursor='0';historyState.stack=[];historyState.page=1;historyState.next=null}
  historyState.busy=true;historyMessage(statusId,'正在載入歷史主題……');
  try{
-  const from=historyEl('historyFrom')?.value||'',to=historyEl('historyTo')?.value||'';const filter=(from?'&from='+encodeURIComponent(from):'')+(to?'&to='+encodeURIComponent(to):'');const response=await api('/api/admin/history?limit=20&cursor='+encodeURIComponent(historyState.cursor)+filter,{admin:true});
+  const from=historyEl('historyFrom')?.value||'',to=historyEl('historyTo')?.value||'';const filter=(from?'&from='+encodeURIComponent(from):'')+(to?'&to='+encodeURIComponent(to):'')+(historyTrashMode?'&trash=1':'');const response=await api('/api/admin/history?limit=20&cursor='+encodeURIComponent(historyState.cursor)+filter,{admin:true});
   const page=await response.json();
   if(!page||!Array.isArray(page.items)||!Number.isFinite(page.total)||!Number.isFinite(page.limit)||(page.nextCursor!==null&&typeof page.nextCursor!=='string'))throw new Error('歷史列表回應格式不正確。');
   historyState.next=page.nextCursor;
@@ -265,7 +288,7 @@ if(mode==='host'){
   const saveSnapshot=historyEl('saveSnapshot'),openHistory=historyEl('openHistory'),dialog=historyEl('hostHistoryDialog');
   const closeHistory=historyEl('closeHostHistory'),prev=historyEl('hostHistoryPrev'),next=historyEl('hostHistoryNext');
   const launchFromDialog=historyEl('launchHistoryFromDialog'),launchHistory=historyEl('launchHistory');
-  if(saveSnapshot)saveSnapshot.onclick=async()=>{const title=await promptUI('為這份歷史快照命名（可留白使用目前題目）：',state?.question||'');if(title===null)return;try{await act({action:'snapshot',title});toast('歷史快照已保存。');if(dialog?.open)loadHistoryPage(true)}catch(e){toast(e.message)}};const archiveButton=historyEl('archiveActivity');if(archiveButton)archiveButton.onclick=async()=>{if(!await confirmUI('確定結束目前活動並封存成果？封存後仍可在歷史主題管理中檢視與設定開放狀態。'))return;archiveButton.disabled=true;try{const r=await api('/api/admin/action',{method:'POST',body:{action:'archive'},admin:true});const result=await r.json();toast(result.alreadyArchived?'這個回合已封存，沒有重複建立。':'活動成果已封存。');if(dialog?.open)await loadHistoryPage(true)}catch(e){toast(e.message)}finally{archiveButton.disabled=false}};const historySearch=historyEl('historySearch'),historyReset=historyEl('historyReset');if(historySearch)historySearch.onclick=()=>loadHistoryPage(true);if(historyReset)historyReset.onclick=()=>{if(historyEl('historyFrom'))historyEl('historyFrom').value='';if(historyEl('historyTo'))historyEl('historyTo').value='';loadHistoryPage(true)};
+  if(saveSnapshot)saveSnapshot.onclick=async()=>{const title=await promptUI('為這份歷史快照命名（可留白使用目前題目）：',state?.question||'');if(title===null)return;try{await act({action:'snapshot',title});toast('歷史快照已保存。');if(dialog?.open)loadHistoryPage(true)}catch(e){toast(e.message)}};const archiveButton=historyEl('archiveActivity');if(archiveButton)archiveButton.onclick=async()=>{if(!await confirmUI('確定結束目前活動並封存成果？封存後仍可在歷史主題管理中檢視與設定開放狀態。'))return;archiveButton.disabled=true;try{const r=await api('/api/admin/action',{method:'POST',body:{action:'archive'},admin:true});const result=await r.json();toast(result.alreadyArchived?'這個回合已封存，沒有重複建立。':'活動成果已封存。');if(dialog?.open)await loadHistoryPage(true)}catch(e){toast(e.message)}finally{archiveButton.disabled=false}};const historySearch=historyEl('historySearch'),historyReset=historyEl('historyReset');if(historySearch)historySearch.onclick=()=>loadHistoryPage(true);if(historyReset)historyReset.onclick=()=>{if(historyEl('historyFrom'))historyEl('historyFrom').value='';if(historyEl('historyTo'))historyEl('historyTo').value='';loadHistoryPage(true)};const trashToggle=historyEl('toggleHistoryTrash');if(trashToggle)trashToggle.onclick=()=>{historyTrashMode=!historyTrashMode;trashToggle.textContent=historyTrashMode?'返回正常歷史':'查看回收區';loadHistoryPage(true)};
   if(openHistory&&dialog)openHistory.onclick=async()=>{try{historyState.cursor='0';historyState.stack=[];historyState.page=1;dialog.showModal();await loadHistoryPage(true)}catch(e){historyError('無法開啟歷史管理',e,'hostHistoryStatus')}};
   if(closeHistory&&dialog)closeHistory.onclick=()=>dialog.close();
   if(prev)prev.onclick=historyPrev;
