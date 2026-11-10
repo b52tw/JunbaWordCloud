@@ -71,7 +71,7 @@ export class WordCloudRoom extends DurableObject{
 
   if(path==='/api/join'&&request.method==='GET')return reply(json({join,shortJoin,room}));
   if(path==='/api/admin/config')return reply(json({links:[join],join,shortJoin,shortHost,dataPath:'活動雲端儲存',version:'1.2.0',online:true,questions:meta.questions}));
-  if(path==='/api/admin/history'&&request.method==='GET')return reply(json(this.core.history({limit:url.searchParams.get('limit'),cursor:url.searchParams.get('cursor')||'0'})));
+  if(path==='/api/admin/history'&&request.method==='GET')return reply(json(this.core.history({limit:url.searchParams.get('limit'),cursor:url.searchParams.get('cursor')||'0',from:url.searchParams.get('from')||'',to:url.searchParams.get('to')||''})));
   const historyOpenMatch=path.match(/^\/api\/admin\/history\/([a-f0-9-]{36})\/open$/);
   if(historyOpenMatch&&request.method==='POST'){const input=await body(request);return reply(json({ok:true,...this.core.setHistoryOpen(historyOpenMatch[1],!!input.open)}))}
   const historyMatch=path.match(/^\/api\/admin\/history\/([a-f0-9-]{36})$/);
