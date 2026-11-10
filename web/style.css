@@ -70,3 +70,6 @@
 
 /* In-app confirmation and prompt dialog: avoids browser URL banners */
 .app-dialog{width:min(460px,calc(100vw - 28px));border:1px solid #dce2eb;border-radius:18px;padding:24px;color:var(--ink);box-shadow:0 18px 70px #151f3340}.app-dialog::backdrop{background:#15223899}.app-dialog h2{font-size:20px;margin:0 0 12px}.app-dialog p{font-size:14px;line-height:1.8;white-space:pre-wrap;color:var(--muted);overflow-wrap:anywhere}.app-dialog input{width:100%;min-height:44px;border:1px solid var(--line);border-radius:10px;padding:10px 12px;font:inherit;margin:8px 0}.app-dialog-actions{display:flex;justify-content:flex-end;gap:10px;margin-top:20px}.app-dialog-actions button{min-width:92px;min-height:42px}
+
+/* Sticker character display mode */
+.cloud-stage canvas{touch-action:manipulation}.cloud-stage[data-theme="paper"]{background:radial-gradient(ellipse at 50% 45%,rgba(255,225,151,.28),transparent 68%),#fcf9f0}
