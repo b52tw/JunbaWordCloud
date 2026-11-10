@@ -4,6 +4,7 @@
   "account_id": "b6922ae6e76633c3d175e1452ceadc36",
   "compatibility_date": "2025-10-01",
   "assets": {"directory":"web","binding":"ASSETS","run_worker_first":true},
+  "d1_databases":[{"binding":"BANK","database_name":"junba-wordcloud-staging-bank","database_id":"1249221c-c07c-4156-a921-572ad2c4c5e8"}],
   "durable_objects":{"bindings":[{"name":"ROOMS","class_name":"WordCloudRoom"}]},
   "migrations":[{"tag":"v1","new_sqlite_classes":["WordCloudRoom"]}]
 }
