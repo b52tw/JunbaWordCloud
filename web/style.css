@@ -44,3 +44,5 @@
 .archive-submit-form label{margin:0}
 @media(max-width:700px){.archive-cloud-grid{grid-template-columns:1fr}.archive-live-canvas{height:190px}}
 @media(prefers-reduced-motion:reduce){.cloud-stage:after,.cloud-stage:has(canvas.visual-motion-wave) canvas,.cloud-stage:has(canvas.visual-motion-pulse) canvas,.cloud-stage:has(canvas.visual-motion-lively) canvas{animation:none!important}}
+
+.cloud-stage[data-depth="low"] canvas{filter:drop-shadow(0 4px 8px rgba(0,190,230,.10))}.cloud-stage[data-depth="medium"] canvas{filter:drop-shadow(0 10px 20px rgba(0,190,230,.2))}.cloud-stage[data-depth="high"] canvas{filter:drop-shadow(0 18px 30px rgba(0,190,230,.34))}.cloud-stage[data-depth="high"]{perspective:800px}.cloud-stage[data-depth="high"]:after{opacity:1;filter:hue-rotate(90deg) saturate(1.5)}
