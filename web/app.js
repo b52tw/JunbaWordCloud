@@ -21,6 +21,45 @@ async function api(path,{method='GET',body,admin=false}={}){
  if(!r.ok){let m;try{m=(await r.json()).error}catch{};throw Error(m||'連線失敗，請確認程式仍在執行。')}
  return r;
 }
+let feedbackNotificationUnread=0;
+function updateFeedbackNotificationBadge(unread){
+ feedbackNotificationUnread=Math.max(0,Number(unread)||0);
+ const badge=$('#feedbackNotificationCount'),button=$('#feedbackNotificationsButton');
+ if(badge){badge.textContent=feedbackNotificationUnread>99?'99+':String(feedbackNotificationUnread);badge.hidden=feedbackNotificationUnread===0}
+ if(button){button.setAttribute('aria-label',feedbackNotificationUnread?'回饋通知，'+feedbackNotificationUnread+' 則未讀':'回饋通知');button.title=feedbackNotificationUnread+' 則未讀回饋通知'}
+}
+async function refreshFeedbackNotificationBadge(){
+ if(mode!=='join'||!IS_CLOUD)return;
+ try{const data=await(await api('/api/feedback/notifications?limit=30')).json();updateFeedbackNotificationBadge(data.unread)}
+ catch(e){/* Keep the last known badge during temporary network errors. */}
+}
+function appendFeedbackEntry(container,item,{showRead=false,onRead=null}={}){
+ const card=document.createElement('article');card.className='feedback-entry'+(showRead&&!item.read_at?' is-unread':'');
+ const heading=document.createElement('div');heading.className='feedback-entry-heading';
+ const title=document.createElement('strong');title.textContent=(item.word||'詞語')+'｜'+(item.author_label||'匿名');
+ const stamp=document.createElement('time');const date=Date.parse(item.created_at||'');stamp.textContent=Number.isFinite(date)?new Date(date).toLocaleString('zh-TW'):'時間未知';heading.append(title,stamp);card.append(heading);
+ const body=String(item.body||'');
+ if(body.length>160){const preview=document.createElement('p');preview.className='feedback-preview';preview.textContent=body.slice(0,120)+'…';const details=document.createElement('details');const summary=document.createElement('summary');summary.textContent='展開完整回饋';const full=document.createElement('p');full.className='feedback-full-text';full.textContent=body;details.append(summary,full);card.append(preview,details)}else{const text=document.createElement('p');text.className='feedback-full-text';text.textContent=body;card.append(text)}
+ if(showRead){const footer=document.createElement('div');footer.className='feedback-entry-footer';const stateLabel=document.createElement('span');stateLabel.textContent=item.read_at?'已讀':'尚未讀取';footer.append(stateLabel);if(!item.read_at&&onRead){const button=document.createElement('button');button.type='button';button.className='secondary';button.textContent='標記已讀';button.onclick=onRead;footer.append(button)}card.append(footer)}
+ container.append(card);
+}
+async function openFeedbackComposer(word){
+ if(!state?.open){toast('主持人已暫停收件，目前無法新增回饋。');return}
+ const dialog=$('#feedbackComposeDialog');$('#feedbackComposeWord').textContent='回饋對象：「'+word+'」';$('#feedbackComposeBody').value='';$('#feedbackComposeStatus').textContent='送出後，這則回饋會公開顯示給大家。';dialog.showModal();$('#feedbackComposeBody').focus();
+}
+async function openFeedbackThread(word){
+ const dialog=$('#feedbackThreadDialog'),list=$('#feedbackThreadList'),status=$('#feedbackThreadStatus');$('#feedbackThreadTitle').textContent='「'+word+'」的公開回饋';list.replaceChildren();status.textContent='正在載入回饋…';dialog.showModal();
+ try{const data=await(await api('/api/feedback?word='+encodeURIComponent(word))).json();list.replaceChildren();if(!data.items?.length){status.textContent='目前還沒有回饋，歡迎成為第一位留言的人。';return}status.textContent='共 '+(data.total||data.items.length)+' 則回饋';data.items.forEach(item=>appendFeedbackEntry(list,item))}
+ catch(e){status.textContent=e.message}
+}
+async function loadFeedbackNotifications(){
+ const list=$('#feedbackNotificationsList'),status=$('#feedbackNotificationsStatus');list.replaceChildren();status.textContent='正在讀取通知…';
+ try{const data=await(await api('/api/feedback/notifications?limit=30')).json();updateFeedbackNotificationBadge(data.unread);if(!data.items?.length){status.textContent='目前沒有回饋通知。';return}status.textContent=(data.unread||0)+' 則未讀通知';data.items.forEach(item=>appendFeedbackEntry(list,item,{showRead:true,onRead:async()=>{const button=list.querySelectorAll('button');button.forEach(b=>b.disabled=true);try{await api('/api/feedback/notifications/'+encodeURIComponent(item.id)+'/read',{method:'POST',body:{}});await loadFeedbackNotifications()}catch(e){status.textContent=e.message;button.forEach(b=>b.disabled=false)}}}))}
+ catch(e){status.textContent=e.message}
+}
+async function openFeedbackNotifications(){
+ const dialog=$('#feedbackNotificationsDialog');if(!dialog.open)dialog.showModal();await loadFeedbackNotifications();
+}
 async function act(body){await api('/api/admin/action',{method:'POST',body,admin:true});await refresh();}
 function setConnection(ok){if(mode==='history')return;connected=ok;const label=mode==='host'?$('#connection'):mode==='screen'?$('#screenConnection'):$('#joinConnection');label.textContent=ok?(mode==='screen'?'':'即時連線中'):'連線中斷，重新連線中…';if(mode==='join'){updateSubmit();if(state)renderEndorsements();}}
 async function refresh(){
@@ -60,7 +99,7 @@ function renderEndorsements(force=false){
  state.words.forEach(word=>{const row=document.createElement('div');row.className='endorse-row';const info=document.createElement('div');info.className='endorse-info';const name=document.createElement('strong');name.textContent=word.text;const meta=document.createElement('small');meta.textContent='投稿 '+word.count+' · 讚同 '+(word.likes||0)+' · 熱度 '+heat(word);info.append(name,meta);
  const b=document.createElement('button');b.type='button';b.className=liked.has(word.text)?'like-button liked':'like-button';b.textContent=liked.has(word.text)?(state.style==='moles'?'✓ 已敲中':'✓ 已讚同'):(state.style==='moles'?'🔨 敲一下':'👍 讚同');b.disabled=liked.has(word.text)||pendingLikes.has(word.text)||!state.open||!ready||!connected;b.setAttribute('aria-label',b.textContent+'「'+word.text+'」');
  b.onclick=async()=>{if(pendingLikes.has(word.text))return;pendingLikes.add(word.text);b.disabled=true;try{await api('/api/like',{method:'POST',body:{text:word.text,room:participantRoom,round:state.round}});toast(state.style==='moles'?'敲中「'+word.text+'」！':'已讚同「'+word.text+'」！')}catch(e){toast(e.message)}finally{pendingLikes.delete(word.text);await refresh();renderEndorsements(true)}};
- const feedback=document.createElement('button');feedback.type='button';feedback.className='secondary feedback-button';feedback.textContent='💬 回饋';feedback.disabled=!state.open||!ready||!connected;feedback.onclick=async()=>{const body=await promptUI('給「'+word.text+'」一則公開回饋（最多 300 字）：');if(body===null||!body.trim())return;feedback.disabled=true;try{await api('/api/feedback',{method:'POST',body:{word:word.text,body,label:participantName||'匿名'}});toast('回饋已公開，原始投稿者會收到通知。')}catch(e){toast(e.message)}finally{feedback.disabled=!state.open||!ready||!connected}};const thread=document.createElement('button');thread.type='button';thread.className='secondary feedback-thread-button';thread.textContent='查看回饋';thread.onclick=async()=>{try{const data=await(await api('/api/feedback?word='+encodeURIComponent(word.text))).json();const lines=(data.items||[]).map(x=>x.author_label+'：'+x.body);await alertUI(lines.length?lines.join('\n\n'):'目前還沒有回饋。')}catch(e){toast(e.message)}};row.append(info,b,feedback,thread);list.append(row)});list.scrollTop=scrollTop;$('#endorseEmpty').hidden=state.words.length>0;
+ const feedback=document.createElement('button');feedback.type='button';feedback.className='secondary feedback-button';feedback.textContent='💬 回饋';feedback.disabled=!state.open||!ready||!connected;feedback.onclick=()=>openFeedbackComposer(word.text);const thread=document.createElement('button');thread.type='button';thread.className='secondary feedback-thread-button';thread.textContent='查看回饋';thread.onclick=()=>openFeedbackThread(word.text);row.append(info,b,feedback,thread);list.append(row)});list.scrollTop=scrollTop;$('#endorseEmpty').hidden=state.words.length>0;
 }
 function hash(s){let h=2166136261;for(let i=0;i<s.length;i++)h=Math.imul(h^s.charCodeAt(i),16777619);return h>>>0}
 function renderParticipantLabels(el,items){if(!el)return;el.replaceChildren();const list=Array.isArray(items)?items:[];list.forEach(item=>{const span=document.createElement('span');span.textContent=String(item.label)+(Number(item.submissions)>1?' ×'+item.submissions:'');el.append(span)});el.hidden=list.length===0;}
@@ -241,7 +280,7 @@ if(mode==='host'){
 }else if(mode==='join'){
  const room=participantRoom;const myHistoryLink=$('#myHistoryLink');if(myHistoryLink)myHistoryLink.href=API_ROOT+'/my-history';
  api('/api/join').then(r=>r.json()).then(v=>{ready=new URL(v.join).searchParams.get('room')===room;updateSubmit();if(state)renderEndorsements();if(!ready){$('#submitStatus').textContent='活動連結已失效，請重新掃描現場 QR Code。';$('#submitStatus').className='submit-status error'}}).catch(()=>setConnection(false));
- syncParticipantName();askParticipantName();$('#changeParticipantName').onclick=()=>askParticipantName(true);$('#participantNameForm').onsubmit=e=>{const value=$('#participantNameInput').value.trim();if(e.submitter&&e.submitter.id==='skipParticipantName'){participantName='';localStorage.removeItem(participantStorageKey);}else if(value&&!validParticipantName(value)){e.preventDefault();toast('小名請輸入 1～5 個中英文或數字');return;}else if(value){participantName=value;localStorage.setItem(participantStorageKey,value);}else{participantName='';localStorage.removeItem(participantStorageKey);}sessionStorage.setItem('junba-name-prompted-v2:'+participantRoom,'1');syncParticipantName();};$('#submitForm').onsubmit=async e=>{
+ syncParticipantName();askParticipantName();$('#changeParticipantName').onclick=()=>askParticipantName(true);$('#feedbackNotificationsButton').onclick=openFeedbackNotifications;$('#feedbackNotificationsClose').onclick=()=>$('#feedbackNotificationsDialog').close();$('#feedbackThreadClose').onclick=()=>$('#feedbackThreadDialog').close();$('#feedbackComposeCancel').onclick=()=>$('#feedbackComposeDialog').close();$('#feedbackComposeForm').onsubmit=async e=>{e.preventDefault();const body=$('#feedbackComposeBody').value.trim(),word=$('#feedbackComposeWord').textContent.replace(/^回饋對象：「|」$/g,'');if(!body)return;if([...body].length>300){$('#feedbackComposeStatus').textContent='回饋內容最多 300 字。';return}const submit=$('#feedbackComposeSubmit');submit.disabled=true;submit.textContent='公開中…';try{await api('/api/feedback',{method:'POST',body:{word,body,label:participantName||'匿名'}});$('#feedbackComposeDialog').close();toast('回饋已公開，原始投稿者會收到通知。')}catch(err){$('#feedbackComposeStatus').textContent=err.message}finally{submit.disabled=false;submit.textContent='公開回饋'}};$('#participantNameForm').onsubmit=e=>{const value=$('#participantNameInput').value.trim();if(e.submitter&&e.submitter.id==='skipParticipantName'){participantName='';localStorage.removeItem(participantStorageKey);}else if(value&&!validParticipantName(value)){e.preventDefault();toast('小名請輸入 1～5 個中英文或數字');return;}else if(value){participantName=value;localStorage.setItem(participantStorageKey,value);}else{participantName='';localStorage.removeItem(participantStorageKey);}sessionStorage.setItem('junba-name-prompted-v2:'+participantRoom,'1');syncParticipantName();};$('#submitForm').onsubmit=async e=>{
   e.preventDefault();if(!state||!ready||submitting)return;submitting=true;const currentRound=state.round;const b=$('#submitWords');b.disabled=true;b.textContent='送出中…';$('#submitStatus').textContent='';
   try{await api('/api/submit',{method:'POST',body:{text:$('#words').value,label:participantName,room,round:currentRound}});$('#words').value='';$('#submitStatus').className='submit-status';$('#submitStatus').textContent='✓ 已收到！你的想法已加入文字雲。';}
   catch(e){$('#submitStatus').className='submit-status error';$('#submitStatus').textContent=e.message;await refresh()}
@@ -254,8 +293,8 @@ if(mode==='host'){
 }
 refresh();
 let events,retryTimer;function reconnect(){clearTimeout(retryTimer);if(events)events.close();if(IS_CLOUD){const url=new URL(API_ROOT+'/ws',location.href);url.protocol=url.protocol==='https:'?'wss:':'ws:';events=new WebSocket(url);events.onmessage=e=>{try{consume(JSON.parse(e.data))}catch{refresh()}};events.onclose=()=>{setConnection(false);retryTimer=setTimeout(reconnect,4000)};events.onerror=()=>setConnection(false);}else{events=new EventSource('/api/events');events.onmessage=()=>refresh();events.onerror=()=>setConnection(false);}refresh()}reconnect();
-window.addEventListener('online',reconnect);window.addEventListener('pageshow',()=>refresh());document.addEventListener('visibilitychange',()=>{if(!document.hidden)reconnect()});
-setInterval(()=>{if(!IS_CLOUD||!events||events.readyState!==1)refresh()},IS_CLOUD?(mode==='screen'?2500:15000):5000);
+window.addEventListener('online',reconnect);window.addEventListener('pageshow',()=>{refresh();if(mode==='join')refreshFeedbackNotificationBadge()});document.addEventListener('visibilitychange',()=>{if(!document.hidden){reconnect();if(mode==='join')refreshFeedbackNotificationBadge()}});
+setInterval(()=>{if(!IS_CLOUD||!events||events.readyState!==1)refresh()},IS_CLOUD?(mode==='screen'?2500:15000):5000);if(mode==='join'&&IS_CLOUD){refreshFeedbackNotificationBadge();setInterval(refreshFeedbackNotificationBadge,30000)}
 if(document.fonts)document.fonts.ready.then(paint);
 
 if(typeof ResizeObserver!=="undefined"){const obs=new ResizeObserver(()=>{clearTimeout(resizeTimer);resizeTimer=setTimeout(paint,80)});obs.observe(mode==="host"?$(".cloud-stage"):mode==="screen"?$(".screen-cloud"):$(".participant-cloud"));}

@@ -30,3 +30,35 @@ test('visual appearance accepts network science and motion presets while rejecti
 test('participant history includes their separate archived interaction round',()=>{const c=room(),v='a'.repeat(32);c.submit({text:'原始參與',round:c.meta().round},v);const topic=c.action({action:'archive'}).topic;c.setHistoryAccess(topic.id,'open');c.archivedSubmit(topic.id,{text:'回訪參與'},v);c.archivedLike(topic.id,{text:'回訪參與'},v);const history=c.participantHistory(v);assert.equal(history.items.length,1);assert.equal(history.items[0].submissions,2);assert.equal(history.items[0].likes,1);c.deleteHistory(topic.id);assert.equal(c.participantHistory(v).items.length,0)});
 
 test('reopening an archived topic creates a fresh round seeded with original snapshot words',()=>{const c=room(),v='b'.repeat(32);c.submit({text:'原始資料一,原始資料二',round:c.meta().round},v);const topic=c.action({action:'archive'}).topic;c.setHistoryAccess(topic.id,'open');const first=c.archivedDetail(topic.id,v).interactionState;assert(first.words.some(w=>w.text==='原始資料一'));c.archivedSubmit(topic.id,{text:'第一次回訪'},v);c.setHistoryAccess(topic.id,'view');c.setHistoryAccess(topic.id,'open');const second=c.archivedDetail(topic.id,v).interactionState;assert.notEqual(first.round,second.round);assert(second.words.some(w=>w.text==='原始資料二'));assert(!second.words.some(w=>w.text==='第一次回訪'));c.archivedSubmit(topic.id,{text:'第二次回訪'},v);assert(c.archivedDetail(topic.id,v).interactionState.words.some(w=>w.text==='第二次回訪'))});
+
+test('live feedback creates a private notification for the original submitter and pause blocks new feedback',()=>{
+ const c=room(),owner='a'.repeat(32),sender='b'.repeat(32),round=c.meta().round;
+ c.submit({text:'勇氣',label:'投稿者',round},owner);
+ const created=c.createWordFeedback({word:'勇氣',body:'很有共鳴，謝謝分享。'},sender,'回饋者');
+ assert.equal(created.notified,1);
+ const inbox=c.feedbackNotifications(owner);
+ assert.equal(inbox.unread,1);
+ assert.equal(inbox.items.length,1);
+ assert.equal(inbox.items[0].word,'勇氣');
+ assert.equal(inbox.items[0].read_at,null);
+ assert.equal(c.feedbackNotifications(sender).unread,0);
+ c.markFeedbackRead(inbox.items[0].id,sender);
+ assert.equal(c.feedbackNotifications(owner).unread,1,'another participant cannot mark this notification as read');
+ c.markFeedbackRead(inbox.items[0].id,owner);
+ assert.equal(c.feedbackNotifications(owner).unread,0);
+ c.action({action:'toggle'});
+ assert.throws(()=>c.createWordFeedback({word:'勇氣',body:'暫停後不應新增'},sender,'回饋者'),/暫停/);
+ assert.equal(c.wordFeedback({word:'勇氣'},sender).items.length,1,'existing public feedback remains readable while paused');
+});
+test('archived feedback follows its own access state and is independent of the live activity pause',()=>{
+ const c=room(),owner='c'.repeat(32),sender='d'.repeat(32),round=c.meta().round;
+ c.submit({text:'原始想法',round},owner);
+ const topic=c.action({action:'snapshot'}).topic;
+ c.setHistoryAccess(topic.id,true);
+ c.archivedSubmit(topic.id,{text:'歷史回訪想法'},owner);
+ c.action({action:'toggle'});
+ const created=c.createWordFeedback({word:'歷史回訪想法',body:'歷史主題仍獨立開放。',historyId:topic.id},sender,'回訪者');
+ assert.equal(created.notified,1);
+ c.setHistoryAccess(topic.id,false);
+ assert.throws(()=>c.createWordFeedback({word:'歷史回訪想法',body:'已關閉',historyId:topic.id},sender,'回訪者'),/停止互動/);
+});
