@@ -73,3 +73,6 @@
 
 /* Sticker character display mode */
 .cloud-stage canvas{touch-action:manipulation}.cloud-stage[data-theme="paper"]{background:radial-gradient(ellipse at 50% 45%,rgba(255,225,151,.28),transparent 68%),#fcf9f0}
+
+/* Whack-a-mole character presentation */
+.endorse-row:has(.like-button:not(:disabled)){transition:transform .15s ease}.endorse-row:has(.like-button:not(:disabled)):active{transform:scale(.985)}.endorse-row .like-button{min-width:92px;font-weight:800}.cloud-stage[data-theme="night"]{background:radial-gradient(ellipse at 50% 45%,rgba(151,99,54,.2),transparent 68%),linear-gradient(145deg,#14243a,#0d1c2d)}
