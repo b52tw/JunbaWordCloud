@@ -119,3 +119,5 @@
 .archive-like-chip:disabled{opacity:.65;cursor:default;background:#e9f4ee;color:#35634a}
 .archive-card-question{display:block;color:var(--muted);font-size:13px;line-height:1.5;margin:4px 0}
 @media(max-width:520px){.archive-word-row{grid-template-columns:1fr}.archive-word-row>span{text-align:left}.archive-word-row>button{grid-column:1}}
+
+.cloud-stage canvas,.screen-cloud canvas,.participant-cloud canvas{filter:contrast(1.12) saturate(1.08)}.participant-cloud canvas{touch-action:manipulation;cursor:crosshair}
