@@ -62,3 +62,33 @@ test('archived feedback follows its own access state and is independent of the l
  c.setHistoryAccess(topic.id,'view');
  assert.throws(()=>c.createWordFeedback({word:'歷史回訪想法',body:'已關閉',historyId:topic.id},sender,'回訪者'),/停止互動/);
 });
+
+test('reactivating a history topic restores hidden interaction words and continues the same personal history',()=>{
+ const c=room(),owner='1'.repeat(32),other='2'.repeat(32),round=c.meta().round;
+ c.submit({text:'原始想法',label:'小明',round},owner);
+ const topic=c.action({action:'snapshot',title:'同一場活動歷史'}).topic;
+ c.setHistoryAccess(topic.id,'open');
+ c.archivedSubmit(topic.id,{text:'檯面下新增想法'},owner);
+ c.archivedLike(topic.id,{text:'檯面下新增想法'},other);
+ const before=c.historyDetail(topic.id);
+ assert.equal(before.words.length,1,'the original snapshot remains immutable');
+ c.action({action:'historyUse',id:topic.id});
+ let live=c.state();
+ assert(live.words.some(w=>w.text==='原始想法'));
+ assert.equal(live.words.find(w=>w.text==='檯面下新增想法').count,1);
+ assert.equal(live.words.find(w=>w.text==='檯面下新增想法').likes,1);
+ assert.equal(c.meta().activeHistoryId,topic.id);
+ const activeRound=c.meta().round;
+ c.submit({text:'恢復後新投稿',label:'小明',round:activeRound},owner);
+ c.like({text:'恢復後新投稿',round:activeRound},other);
+ live=c.state();
+ assert.equal(live.words.find(w=>w.text==='恢復後新投稿').count,1);
+ assert.equal(live.words.find(w=>w.text==='恢復後新投稿').likes,1);
+ const detail=c.archivedDetail(topic.id,other);
+ assert(detail.interactionState.words.some(w=>w.text==='檯面下新增想法'));
+ assert(detail.interactionState.words.some(w=>w.text==='恢復後新投稿'));
+ const mine=c.participantHistory(owner).items.find(x=>x.id===topic.id);
+ assert(mine,'the topic remains in the participant personal history');
+ assert.equal(mine.submissions,3,'original, archived and post-reactivation submissions are all counted');
+ assert.equal(c.historyDetail(topic.id).words.length,1,'reactivation never overwrites the immutable original snapshot');
+});
