@@ -60,7 +60,8 @@ export default{async fetch(request,env){const url=new URL(request.url);try{
 export class WordCloudRoom extends DurableObject{
  constructor(ctx,env){super(ctx,env);this.ctx=ctx;this.env=env;this.core=new RoomCore(ctx.storage.sql,fn=>ctx.storage.transactionSync(fn));this.rates=new Map()}
  async initialize(adminHash){this.core.create(adminHash);return true}
- broadcast(){const message=JSON.stringify(this.core.state());for(const ws of this.ctx.getWebSockets()){try{ws.send(message)}catch{try{ws.close(1011,'重新連線')}catch{}}}}
+ broadcast(){this.broadcastEvent(this.core.state())}
+ broadcastEvent(payload){const message=JSON.stringify(payload);for(const ws of this.ctx.getWebSockets()){try{ws.send(message)}catch{try{ws.close(1011,'重新連線')}catch{}}}}
  async fetch(request){const url=new URL(request.url),match=url.pathname.match(/^\/r\/([a-z0-9]{12,40})(.*)$/),room=match?.[1],path=match?.[2]||'/';let newCookie=false;let voter=(request.headers.get('Cookie')||'').match(/(?:^|;\s*)junba_wordcloud_voter=([a-f0-9]{32})(?:;|$)/)?.[1];if(!voter){voter=token();newCookie=true}
  const reply=r=>{if(newCookie)r.headers.append('Set-Cookie','junba_wordcloud_voter='+voter+'; Path=/; Max-Age=31536000; HttpOnly; SameSite=Strict'+(url.protocol==='https:'?'; Secure':''));return r};
  try{
@@ -76,7 +77,7 @@ export class WordCloudRoom extends DurableObject{
   if(publicHistoryAction&&request.method==='POST'){const input=await body(request);const now=Date.now(),recent=(this.rates.get(voter)||[]).filter(t=>now-t<10000);if(recent.length>=10)throw new UserError('送出太快囉，請稍等 10 秒',429);this.rates.set(voter,[...recent,now]);const result=publicHistoryAction[2]==='submit'?this.core.archivedSubmit(publicHistoryAction[1],input,voter):this.core.archivedLike(publicHistoryAction[1],input,voter);return reply(json(result))}
 
   if(path==='/api/feedback'&&request.method==='GET')return reply(json(this.core.wordFeedback({word:url.searchParams.get('word'),historyId:url.searchParams.get('historyId')||''},voter)));
-  if(path==='/api/feedback'&&request.method==='POST'){const input=await body(request);return reply(json(this.core.createWordFeedback(input,voter,input.label||'匿名')))}
+  if(path==='/api/feedback'&&request.method==='POST'){const input=await body(request),result=this.core.createWordFeedback(input,voter,input.label||'匿名');this.broadcastEvent({type:'feedback',word:String(input.word||'').trim(),round:result.round||''});return reply(json(result))}
   if(path==='/api/feedback/notifications'&&request.method==='GET')return reply(json(this.core.feedbackNotifications(voter,{limit:url.searchParams.get('limit')})));
   const feedbackReadMatch=path.match(/^\/api\/feedback\/notifications\/([a-f0-9-]{36})\/read$/);
   if(feedbackReadMatch&&request.method==='POST')return reply(json(this.core.markFeedbackRead(feedbackReadMatch[1],voter)));
