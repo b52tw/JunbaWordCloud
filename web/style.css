@@ -125,9 +125,3 @@
 .game-endorse-row{border:1px solid #e7c98d;background:#fffaf0;border-radius:12px;padding:10px}.game-endorse-row .like-button{display:inline-flex!important;min-width:120px;justify-content:center;font-weight:900}.game-endorse-row .endorse-info{margin-bottom:6px}.participant-cloud canvas{touch-action:manipulation}
 
 .game-endorse-row{border:1px solid #e7c98d;background:#fffaf0;border-radius:12px;padding:10px}.game-endorse-row .like-button{display:inline-flex!important;min-width:120px;justify-content:center;font-weight:900}
-
-/* Participant desktop layout and prominent personal-history action */
-.join-page{max-width:1180px;width:100%;}
-.history-access-button{display:flex;align-items:center;justify-content:center;text-decoration:none;text-align:center;margin-top:18px;min-height:48px;border-radius:12px;font-weight:800;}
-@media(min-width:900px){.join-page{display:grid;grid-template-columns:minmax(300px,.88fr) minmax(440px,1.12fr);align-content:start;gap:20px}.join-page>.mobile-brand,.join-page>footer{grid-column:1/-1}.join-form-card{grid-column:1;align-self:start}.endorse-card{grid-column:2;grid-row:2;margin-top:0;align-self:start}.participant-cloud{height:clamp(360px,42vw,560px)}.endorse-list{max-height:42vh}}
-@media(max-width:899px){.join-page{max-width:760px}.participant-cloud{height:clamp(300px,58vw,460px)}}
