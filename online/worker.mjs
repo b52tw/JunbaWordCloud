@@ -84,6 +84,7 @@ export class WordCloudRoom extends DurableObject{
   if(path==='/api/join'&&request.method==='GET')return reply(json({join,shortJoin,room}));
   if(path==='/api/admin/config')return reply(json({links:[join],join,shortJoin,shortHost,dataPath:'活動雲端儲存',version:'1.3.0',online:true,questions:meta.questions,theme:meta.theme,font:meta.font,style:meta.style,motion:meta.motion,networkIcon:meta.networkIcon||'ai',motionAmplitude:meta.motionAmplitude||'medium',motionSpeed:meta.motionSpeed||'normal',participantHistoryEnabled:meta.participantHistoryEnabled!==false}));
   if(path==='/api/admin/history'&&request.method==='GET')return reply(json(this.core.history({limit:url.searchParams.get('limit'),cursor:url.searchParams.get('cursor')||'0',from:url.searchParams.get('from')||'',to:url.searchParams.get('to')||'',includeDeleted:url.searchParams.get('trash')==='1'})));
+  if(path==='/api/admin/history/import'&&request.method==='POST'){const input=await body(request);return reply(json(this.core.importHistory(input)))}
   const historyAccessMatch=path.match(/^\/api\/admin\/history\/([a-f0-9-]{36})\/access$/);
   if(historyAccessMatch&&request.method==='POST'){const input=await body(request);return reply(json({ok:true,...this.core.setHistoryAccess(historyAccessMatch[1],input.mode)}))}
   const historyOpenMatch=path.match(/^\/api\/admin\/history\/([a-f0-9-]{36})\/open$/);
@@ -112,7 +113,7 @@ export class WordCloudRoom extends DurableObject{
     const now=Date.now(),recent=(this.rates.get(voter)||[]).filter(t=>now-t<10000);if(recent.length>=10)throw new UserError('送出太快囉，請稍等 10 秒',429);this.rates.set(voter,[...recent,now]);if(this.rates.size>5000)for(const [k,v]of this.rates)if(now-v[v.length-1]>10000)this.rates.delete(k);
     if(path==='/api/submit')this.core.submit(input,voter);else this.core.like(input,voter);
    }else if(path==='/api/admin/action')this.core.action(input);else throw new UserError('不支援的操作',404);
-   this.broadcast();return reply(json({ok:true,liked:this.core.liked(voter)}));
+   this.broadcast();if(path==='/api/like'&&input.hit===true&&['moles','fishing'].includes(input.gameStyle))this.broadcastEvent({type:'gameHit',text:String(input.text||''),style:input.gameStyle});return reply(json({ok:true,liked:this.core.liked(voter)}));
   }
   throw new UserError('找不到功能',404);
  }catch(e){return reply(json({error:e instanceof UserError?e.message:'暫時無法儲存，請稍後再試'},e.status||500))}}
