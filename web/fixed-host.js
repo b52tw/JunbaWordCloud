@@ -4,6 +4,8 @@ const form=document.querySelector('#fixedHostForm');
 const field=document.querySelector('#hostKey');
 const button=document.querySelector('#fixedHostButton');
 const status=document.querySelector('#fixedHostStatus');
+const savedKey=sessionStorage.getItem('junba-host-key')||'';
+if(/^[a-f0-9]{32}$/i.test(savedKey)){field.value=savedKey;status.textContent='偵測到此瀏覽器分頁已保存主持人 Key，請直接按下驗證按鈕。';}
 form.addEventListener('submit',async event=>{
  event.preventDefault();
  const key=field.value.trim().toLowerCase();
