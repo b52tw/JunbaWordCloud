@@ -68,7 +68,8 @@ async function refresh(){
  if(loading)return;loading=true;
  try{const next=await(await api('/api/state')).json();consume(next);}catch(e){setConnection(false)}finally{loading=false}
 }
-function consume(next){if(!Array.isArray(next.liked))next.liked=state&&state.voteEpoch===next.voteEpoch?(state.liked||[]):[];state=next;setConnection(true);render();ensureCloudFont();}
+function syncFeedbackReadControls(){const list=$('#feedbackNotificationsList');if(!list)return;list.querySelectorAll('.feedback-entry-footer button').forEach(button=>{button.disabled=!state?.open;button.title=state?.open?'標記這則通知為已讀':'主持人暫停活動時，通知狀態暫不更新';});}
+function consume(next){if(!Array.isArray(next.liked))next.liked=state&&state.voteEpoch===next.voteEpoch?(state.liked||[]):[];state=next;syncFeedbackReadControls();setConnection(true);render();ensureCloudFont();}
 function updateSubmit(){if(!state)return;const b=$('#submitWords');b.disabled=submitting||!state.open||!ready||!connected;b.textContent=submitting?'送出中…':!ready?'活動連結無效':!connected?'等待重新連線…':state.open?'送出我的想法 ↗':'主持人已暫停收件';}
 function render(){
  if(!state||mode==='history'||mode==='my-history')return;
