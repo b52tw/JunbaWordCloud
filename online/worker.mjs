@@ -113,7 +113,7 @@ export class WordCloudRoom extends DurableObject{
     const now=Date.now(),recent=(this.rates.get(voter)||[]).filter(t=>now-t<10000);if(recent.length>=10)throw new UserError('送出太快囉，請稍等 10 秒',429);this.rates.set(voter,[...recent,now]);if(this.rates.size>5000)for(const [k,v]of this.rates)if(now-v[v.length-1]>10000)this.rates.delete(k);
     if(path==='/api/submit')this.core.submit(input,voter);else this.core.like(input,voter);
    }else if(path==='/api/admin/action')this.core.action(input);else throw new UserError('不支援的操作',404);
-   this.broadcast();if(path==='/api/like'&&input.hit===true&&['moles','fishing'].includes(input.gameStyle))this.broadcastEvent({type:'gameHit',text:String(input.text||''),style:input.gameStyle});return reply(json({ok:true,liked:this.core.liked(voter)}));
+   this.broadcast();if(path==='/api/like'&&input.hit===true&&input.gameStyle===this.core.state().style)this.broadcastEvent({type:'gameHit',text:String(input.text||''),style:input.gameStyle});return reply(json({ok:true,liked:this.core.liked(voter)}));
   }
   throw new UserError('找不到功能',404);
  }catch(e){return reply(json({error:e instanceof UserError?e.message:'暫時無法儲存，請稍後再試'},e.status||500))}}
