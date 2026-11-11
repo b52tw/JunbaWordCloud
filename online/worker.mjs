@@ -58,6 +58,7 @@ export default{async fetch(request,env){const url=new URL(request.url);try{
   if(['/host','/join','/screen','/history','/my-history'].includes(path))return secure(await env.ASSETS.fetch(new Request(url.origin+'/',request)),url);
   return json({error:'找不到頁面'},404);
  }
+ if(url.pathname==='/fixed-host'||url.pathname==='/fixed-host/')return secure(await env.ASSETS.fetch(new Request(url.origin+'/fixed-host.html',request)),url);
  if(url.pathname==='/'||url.pathname==='/create')return secure(await env.ASSETS.fetch(new Request(url.origin+'/create',request)),url);
  return secure(await env.ASSETS.fetch(request),url);
  }catch(e){return secure(json({error:e instanceof UserError?e.message:'伺服器暫時無法完成操作，請稍後再試'},e.status||500),url)}}};
