@@ -50,14 +50,16 @@ test('live feedback creates a private notification for the original submitter an
  assert.throws(()=>c.createWordFeedback({word:'勇氣',body:'暫停後不應新增'},sender,'回饋者'),/暫停/);
  assert.equal(c.wordFeedback({word:'勇氣'},sender).items.length,1,'existing public feedback remains readable while paused');
 });
-test('archived feedback follows its own access state and is independent of the live activity pause',()=>{
+test('global pause blocks feedback on independently opened archived topics',()=>{
  const c=room(),owner='c'.repeat(32),sender='d'.repeat(32),round=c.meta().round;
  c.submit({text:'原始想法',round},owner);
  const topic=c.action({action:'snapshot'}).topic;
  c.setHistoryAccess(topic.id,'open');
  c.archivedSubmit(topic.id,{text:'歷史回訪想法'},owner);
  c.action({action:'toggle'});
- const created=c.createWordFeedback({word:'歷史回訪想法',body:'歷史主題仍獨立開放。',historyId:topic.id},sender,'回訪者');
+ assert.throws(()=>c.createWordFeedback({word:'歷史回訪想法',body:'暫停時不應新增',historyId:topic.id},sender,'回訪者'),/停止互動/);
+ c.action({action:'toggle'});
+ const created=c.createWordFeedback({word:'歷史回訪想法',body:'恢復後可新增回饋。',historyId:topic.id},sender,'回訪者');
  assert.equal(created.notified,1);
  c.setHistoryAccess(topic.id,'view');
  assert.throws(()=>c.createWordFeedback({word:'歷史回訪想法',body:'已關閉',historyId:topic.id},sender,'回訪者'),/停止互動/);
