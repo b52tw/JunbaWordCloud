@@ -142,7 +142,7 @@ test('fixed host entry forwards the original credential unchanged for server ver
  assert.ok(script.includes("sessionStorage.getItem('junba-host-key')"));
  assert.ok(!script.includes("toLowerCase()"));
  assert.ok(!script.includes("/^[a-f0-9]{32}$/"));
- assert.ok(worker.includes('原主持人連結中 #key='));
+ assert.ok(worker.includes('原主持人連結中 #key='));assert.ok(worker.includes('fixed-host.js?v=20261112-01'));assert.ok(page.includes('fixed-host.js?v=20261112-01'));
 });
 test('sticker layout uses a responsive grid instead of collision packing on host, projection and mobile participant canvases',()=>{const source=readFileSync(new URL('../web/app.js',import.meta.url),'utf8');assert.match(source,/state\.style==='stickers'&&words\.length[\s\S]*?const cols=Math\.max\(1,Math\.floor\(\(W-16\)\/minCell\)\),rows=Math\.max\(1,Math\.floor\(\(H-16\)\/minCell\)\)/);assert.match(source,/Math\.min\(words\.length,cols\*rows,80\)/);});
 test('network cloud words use the general collision-aware layout while retaining the network backdrop',()=>{const source=readFileSync(new URL('../web/app.js',import.meta.url),'utf8');assert.match(source,/if\(style==='network'\)[\s\S]*?const pts=/);assert.ok(!source.includes("else if(shape==='network')"));});
