@@ -134,3 +134,11 @@
 
 /* Compact mobile participant view: keep submission, cloud and challenge controls easy to reach */
 @media(max-width:600px){.join-page{max-width:520px;padding-top:calc(12px + env(safe-area-inset-top,0px));padding-bottom:calc(14px + env(safe-area-inset-bottom,0px));padding-left:12px;padding-right:12px}.mobile-brand{margin-bottom:14px}.join-form-card{padding:18px 17px;border-radius:18px}.join-form-card h1{font-size:21px;line-height:1.4;margin:10px 0}.join-intro{font-size:12px;line-height:1.55;margin-bottom:12px}.join-form-card textarea{padding:10px;min-height:72px}.join-form-card .field-hint{margin:6px 0;font-size:10px;line-height:1.45}.privacy-note{margin-top:12px;padding-top:10px;font-size:9px}.history-access-button{min-height:42px;margin-top:10px}.endorse-card{padding:16px 14px;margin-top:12px;border-radius:18px}.phone-cloud{margin-bottom:12px}.phone-cloud summary{margin-bottom:6px}.participant-cloud{height:clamp(175px,48vw,220px);border-radius:13px}.endorse-heading h2{font-size:19px;margin:8px 0 5px}.endorse-heading p{margin:4px 0;font-size:11px}.join-stats{margin:8px 0;gap:14px}.endorse-list{margin-top:10px;max-height:32vh;gap:7px}.endorse-row{padding:8px;gap:7px;flex-wrap:wrap}.endorse-info{flex:1 1 100%;display:flex;align-items:center;justify-content:space-between;gap:8px}.endorse-info strong{font-size:14px}.endorse-info small{margin-top:0}.like-button,.endorse-row .secondary{min-height:38px;padding:8px 10px;font-size:11px}.join-page footer{padding:10px 4px}}
+
+.audio-panel{margin:18px 0;padding:13px 14px;border:1px solid var(--line,#d9dfe8);border-radius:14px;background:rgba(255,255,255,.045)}
+.audio-panel summary{cursor:pointer;font-weight:800;padding:4px 0}
+.audio-panel label{display:block;margin:12px 0 6px;font-weight:700}
+.audio-panel input[type=range]{width:100%;accent-color:var(--accent,#ff7448)}
+.audio-panel .inline-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
+.audio-panel .inline-actions button{flex:1;min-width:76px}
+.audio-enable-fab{position:fixed;z-index:9999;right:16px;bottom:calc(16px + env(safe-area-inset-bottom,0px));border:0;border-radius:999px;padding:13px 18px;font-weight:800;background:#ffcf70;color:#352414;box-shadow:0 5px 20px #0003}
