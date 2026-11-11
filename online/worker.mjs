@@ -26,7 +26,11 @@ async function body(request){const s=await request.text();if(s.length>65536)thro
 function secure(response,url){if(response.status===101)return response;const r=new Response(response.body,response);r.headers.set('X-Content-Type-Options','nosniff');r.headers.set('Referrer-Policy','no-referrer');r.headers.set('X-Frame-Options','DENY');r.headers.set('Content-Security-Policy',"default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self'; connect-src 'self' "+url.origin.replace('https:','wss:').replace('http:','ws:')+"; object-src 'none'; base-uri 'none'; frame-ancestors 'none'");return r}
 export default{async fetch(request,env){const url=new URL(request.url);try{
  if(request.method==='POST'&&request.headers.get('Origin')&&request.headers.get('Origin')!==url.origin)throw new UserError('請從本活動頁面操作',403);
- if(/^\/(join|host)\/?$/.test(url.pathname)){
+ if(url.pathname==='/host'||url.pathname==='/host/'){
+  if(!['GET','HEAD'].includes(request.method))throw new UserError('不支援的操作',405);
+  return secure(new Response(null,{status:302,headers:{Location:url.origin+'/create','Cache-Control':'no-store'}}),url);
+ }
+ if(url.pathname==='/join'||url.pathname==='/join/'){
   if(!['GET','HEAD'].includes(request.method))throw new UserError('不支援的操作',405);
   const room=publicJoinRoom(env);if(!room)throw new UserError('尚未設定固定參加入口，請使用主持台提供的 QR Code。',404);
   const asset=await env.ASSETS.fetch(new Request(url.origin+'/',request));if(!asset.ok)return secure(asset,url);
