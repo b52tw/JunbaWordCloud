@@ -108,4 +108,6 @@ test('host history import merges by ID and never overwrites existing archive',()
 
 
 test('game hit feedback duration remains long enough for participant and projection screens',()=>{const source=readFileSync(new URL('../web/app.js',import.meta.url),'utf8');assert.match(source,/gameHitUntil\.set\(message\.text,performance\.now\(\)\+3200\)/);assert.match(source,/gameHitBannerUntil=performance\.now\(\)\+3200/);assert.match(source,/gameHitBannerUntil>performance\.now\(\)/)});
-test('fishing pool uses a large irregular circular layout rather than the word-cloud grid',()=>{const source=readFileSync(new URL('../web/app.js',import.meta.url),'utf8');assert.match(source,/style==='fishing'&&words\.length/);assert.match(source,/radius=ring===0\?0:unit\*\(ring===1\?\.30:\.43\)/);assert.match(source,/r=Math\.min\(W,H\)\*\.49/)});
+test('fishing pool uses a large irregular circular layout rather than the word-cloud grid',()=>{const source=readFileSync(new URL('../web/app.js',import.meta.url),'utf8');assert.match(source,/style==='fishing'&&words\.length/);assert.match(source,/radius=ring===0\?0:unit\*\(ring===1\?\.30:\.43\)/);assert.match(source,/r=Math\.min\(W,H\)\*\.56/)});
+
+test('host history management button opens the host-only history dialog',()=>{const source=readFileSync(new URL('../web/app.js',import.meta.url),'utf8');assert.match(source,/historyEl\\('openHistory'\\)\\?\\.addEventListener\\('click',\\(\\)=>\\{historyDialog\\?\\.showModal\\(\\);loadHistoryPage\\(true\\)\\}\\)/)});
