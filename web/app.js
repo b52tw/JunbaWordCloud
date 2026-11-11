@@ -283,6 +283,7 @@ async function loadHistoryPage(reset=false,cardsId='hostHistoryCards',statusId='
   const from=historyEl('historyFrom')?.value||'',to=historyEl('historyTo')?.value||'';const filter=(from?'&from='+encodeURIComponent(from):'')+(to?'&to='+encodeURIComponent(to):'')+(historyTrashMode?'&trash=1':'');const response=await api('/api/admin/history?limit=20&cursor='+encodeURIComponent(historyState.cursor)+filter,{admin:true});
   const page=await response.json();
   if(!page||!Array.isArray(page.items)||!Number.isFinite(page.total)||!Number.isFinite(page.limit)||(page.nextCursor!==null&&typeof page.nextCursor!=='string'))throw new Error('歷史列表回應格式不正確。');
+  if(page.total===0){try{const diagnostic=await(await api('/api/admin/history/diagnostics',{admin:true})).json();historyMessage(statusId,'歷史資料診斷：資料總數 '+diagnostic.total+' 筆；一般 '+diagnostic.visible+' 筆；隱藏 '+diagnostic.hidden+' 筆；已刪除 '+diagnostic.deleted+' 筆。'+(diagnostic.latestCreatedAt?'最近快照：'+diagnostic.latestCreatedAt:'尚無任何快照記錄')+'.')}catch(e){historyMessage(statusId,'歷史列表為 0 筆；診斷讀取失敗：'+e.message)}}
   historyState.next=page.nextCursor;
   if(renderHistoryCards(page.items,cardsId,statusId,detailId,prevId,nextId,pageId))historyMessage(statusId,'共 '+page.total+' 筆歷史主題；每頁 '+page.limit+' 筆。');
  }catch(e){historyError('無法載入歷史列表',e,statusId)}finally{historyState.busy=false}
