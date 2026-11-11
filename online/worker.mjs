@@ -58,7 +58,11 @@ export default{async fetch(request,env){const url=new URL(request.url);try{
   if(['/host','/join','/screen','/history','/my-history'].includes(path))return secure(await env.ASSETS.fetch(new Request(url.origin+'/',request)),url);
   return json({error:'找不到頁面'},404);
  }
- if(url.pathname==='/fixed-host'||url.pathname==='/fixed-host/')return secure(await env.ASSETS.fetch(new Request(url.origin+'/fixed-host.html',request)),url);
+ if(url.pathname==='/fixed-host'||url.pathname==='/fixed-host/'){
+  if(!['GET','HEAD'].includes(request.method))throw new UserError('不支援的操作',405);
+  const html='<!doctype html><html lang="zh-Hant"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><title>峻爸文字雲｜固定活動主持人入口</title><link rel="stylesheet" href="/style.css"></head><body><main class="join-page"><header class="mobile-brand"><span class="brand-icon">雲</span>峻爸文字雲 · 固定活動</header><section class="join-form-card"><div class="eyebrow">HOST ACCESS · FIXED ROOM</div><h1>主持人專用入口</h1><p class="join-intro">此入口已鎖定原始活動。輸入當初建立活動時的主持人 Key，即可驗證並重新進入，不會建立新活動。</p><div class="field-hint">固定活動 ID：8082f8ffa91e4f2c89ec6346</div><form id="fixedHostForm"><label for="hostKey">主持人 Key</label><input id="hostKey" type="password" autocomplete="current-password" autocapitalize="off" spellcheck="false" required placeholder="請輸入原本的主持人 Key"><button id="fixedHostButton" class="primary wide" type="submit">驗證並進入主持台 ↗</button></form><p id="fixedHostStatus" class="submit-status" role="status" aria-live="polite"></p><div class="privacy-note">Key 僅送至固定活動伺服器驗證，不會放入網址。作者：峻爸</div></section></main><script src="/fixed-host.js"></script></body></html>';
+  return secure(new Response(request.method==='HEAD'?null:html,{headers:{'Content-Type':'text/html; charset=utf-8','Cache-Control':'no-store'}}),url);
+ }
  if(url.pathname==='/'||url.pathname==='/create')return secure(await env.ASSETS.fetch(new Request(url.origin+'/create',request)),url);
  return secure(await env.ASSETS.fetch(request),url);
  }catch(e){return secure(json({error:e instanceof UserError?e.message:'伺服器暫時無法完成操作，請稍後再試'},e.status||500),url)}}};
