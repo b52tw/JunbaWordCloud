@@ -328,3 +328,36 @@ test('mobile immersive entry explains landscape before fullscreen and offers por
  assert.match(css,/\.immersive-entry/);
  assert.match(css,/orientation:landscape/);
 });
+
+
+test('participants can directly tap cloud words and active game targets to endorse',()=>{
+ const app=readFileSync(new URL('../web/app.js',import.meta.url),'utf8');
+ const css=readFileSync(new URL('../web/style.css',import.meta.url),'utf8');
+ assert.match(app,/gamePositions=positions\.map\(p=>/);
+ assert.match(app,/\$\('#joinCanvas'\)\.addEventListener\('click'/);
+ assert.match(app,/const gameMode=\['moles','fishing'\]\.includes\(state\.style\)/);
+ assert.match(app,/if\(gameMode&&!target\.up\)/);
+ assert.match(app,/text:target\.text,room,round:state\.round,hit:gameMode&&target\.up,gameStyle:gameMode\?state\.style:''/);
+ assert.match(app,/已直接讚同/);
+ assert.match(app,/敲中「/);
+ assert.match(app,/釣到「/);
+ assert.match(css,/\.participant-cloud canvas\{touch-action:manipulation;cursor:pointer\}/);
+ assert.match(css,/\.direct-like-feedback/);
+});
+
+
+test('immersive view shows the current activity question and tap-anywhere toggles controls',()=>{
+ const app=readFileSync(new URL('../web/app.js',import.meta.url),'utf8');
+ const css=readFileSync(new URL('../web/style.css',import.meta.url),'utf8');
+ assert.match(app,/immersive-topic-text/);
+ assert.match(app,/目前活動主題/);
+ assert.match(app,/state\?\.question/);
+ assert.match(app,/overlay\.addEventListener\('click'/);
+ assert.match(app,/event\.target\.closest\('\.immersive-controls,\.immersive-reveal'\)/);
+ assert.match(app,/setMode\(!overlay\.classList\.contains\('show-controls'\)\)/);
+ assert.match(app,/state\.question,state\.words,state\.theme/);
+ assert.match(app,/canvas\.clientWidth\/Math\.max\(1,rect\.width\)/);
+ assert.match(app,/const canvas=event\.currentTarget,rect=canvas\.getBoundingClientRect\(\)/);
+ assert.match(css,/\.immersive-topic-text/);
+ assert.match(css,/orientation:landscape/);
+});
