@@ -166,3 +166,75 @@
 .immersive-overlay.pure-cloud .immersive-reveal{display:block}
 body.immersive-active{overflow:hidden!important}
 @media(max-width:600px){.immersive-controls{gap:5px}.immersive-controls button{min-height:44px;padding:8px 10px;font-size:12px}.immersive-title{width:100%;text-align:center;margin:0 0 3px}.immersive-cloud-content{border-radius:10px}}
+
+
+/* Immersive modes: pure cloud is a clean animated canvas; simple mode exposes live controls. */
+.immersive-controls{gap:7px}
+.immersive-controls .immersive-mode[aria-pressed="true"]{background:#f4c76a;color:#18243a;border-color:#f4c76a}
+.immersive-controls .immersive-action{background:#354b68}
+.immersive-controls .immersive-action:active,.immersive-controls .immersive-mode:active{transform:translateY(1px)}
+.immersive-overlay.pure-cloud .immersive-reveal{display:block}
+.immersive-overlay.pure-cloud .immersive-controls{display:none}
+.immersive-overlay.simple-controls .immersive-controls{display:flex}
+.immersive-overlay.immersive-motion-on .bubble-sway{animation-name:immersive-cloud-drift;animation-duration:calc(var(--sway-time,5s)*.82);animation-timing-function:ease-in-out}
+.immersive-overlay:not(.immersive-motion-on) .bubble-sway{animation:none!important}
+.immersive-overlay:not(.immersive-names-on) .bubble-participant-names{display:none!important}
+.immersive-overlay:not(.immersive-likes-on) .bubble-like-count{display:none!important}
+.immersive-overlay.pure-cloud .bubble-participant-names,.immersive-overlay.pure-cloud .bubble-like-count{display:none!important}
+@keyframes immersive-cloud-drift{0%,100%{transform:translate3d(0,0,0) rotate(-2.4deg) scale(1)}25%{transform:translate3d(5px,-7px,0) rotate(1.4deg) scale(1.012)}50%{transform:translate3d(-3px,-10px,0) rotate(2.4deg) scale(1.018)}75%{transform:translate3d(-6px,-3px,0) rotate(-1deg) scale(1.008)}}
+.immersive-overlay .bubble-shell{transition:left .55s cubic-bezier(.2,.8,.2,1),top .55s cubic-bezier(.2,.8,.2,1),width .35s ease,height .35s ease}
+.immersive-overlay .bubble-entry{will-change:transform}
+@media(max-width:700px){.immersive-controls .immersive-title{width:100%;text-align:center}.immersive-controls .immersive-action,.immersive-controls .immersive-mode{flex:1 1 auto}.immersive-controls .immersive-exit{flex:1 1 100%}}
+@media(prefers-reduced-motion:reduce){.immersive-overlay.immersive-motion-on .bubble-sway{animation:none!important}}
+
+
+/* Mobile-first entry point: make immersive browsing unmistakable. */
+.immersive-entry{
+ background:#f4774d!important;color:#fff!important;border:2px solid #f4774d!important;
+ border-radius:13px!important;min-height:52px!important;padding:13px 18px!important;
+ font-size:16px!important;font-weight:850!important;box-shadow:0 5px 16px #14203935;
+}
+#phoneCloud>.immersive-entry{display:flex!important;width:100%;margin:10px 0 14px!important;justify-content:center;align-items:center}
+.preview-toolbar .toolbar-actions>.immersive-entry{margin-left:8px}
+.immersive-overlay{height:100vh;height:100dvh;min-height:0}
+.immersive-cloud-content{min-height:0}
+.immersive-orientation-guide[hidden]{display:none!important}
+.immersive-orientation-guide{
+ position:fixed;inset:0;z-index:100002;display:flex;align-items:center;justify-content:center;
+ padding:calc(20px + env(safe-area-inset-top,0px)) 18px calc(20px + env(safe-area-inset-bottom,0px));
+ background:#0c1729f2;color:#fff;
+}
+.immersive-orientation-card{
+ width:min(100%,440px);padding:26px 22px;border:1px solid #ffffff24;border-radius:22px;
+ background:#1b2a43;box-shadow:0 18px 55px #0008;text-align:center;
+}
+.immersive-rotate-icon{
+ width:82px;height:82px;margin:0 auto 14px;border:3px solid #f6c66e;border-radius:20px;
+ display:grid;place-items:center;color:#f6c66e;font-size:58px;line-height:1;
+ transform:rotate(0deg);
+}
+.immersive-orientation-card h2{font-size:23px;margin:8px 0 10px;color:#fff}
+.immersive-orientation-card p{font-size:15px;line-height:1.8;color:#d5deed;margin:0 0 20px}
+.immersive-orientation-card button{
+ width:100%;min-height:50px;margin:5px 0;border-radius:12px;font-size:15px;font-weight:850;
+}
+.immersive-orientation-card .immersive-start-landscape{background:#f4774d;color:#fff}
+.immersive-orientation-card .immersive-start-landscape:disabled{background:#65748b;color:#e4e9f0;opacity:1}
+.immersive-orientation-card .immersive-keep-portrait{background:#344967;color:#fff;border:1px solid #71829a}
+.immersive-orientation-card .immersive-guide-cancel{background:transparent;color:#d5deed;border:1px solid #65748b}
+.immersive-overlay.immersive-portrait-layout .immersive-cloud-content{flex:1;min-height:0}
+.immersive-overlay.immersive-portrait-layout .immersive-controls{display:flex}
+@media(max-width:700px){
+ .immersive-entry{width:100%;display:flex;justify-content:center;font-size:17px!important;min-height:56px!important}
+ .immersive-controls{padding-bottom:max(8px,env(safe-area-inset-bottom,0px))}
+ .immersive-controls .immersive-title{font-size:14px}
+ .immersive-overlay{padding:calc(8px + env(safe-area-inset-top,0px)) calc(8px + env(safe-area-inset-right,0px)) calc(8px + env(safe-area-inset-bottom,0px)) calc(8px + env(safe-area-inset-left,0px))}
+}
+@media(max-width:700px) and (orientation:landscape){
+ .immersive-orientation-card{width:min(90%,560px);padding:16px 20px}
+ .immersive-rotate-icon{width:52px;height:52px;font-size:38px;margin-bottom:7px}
+ .immersive-orientation-card h2{font-size:19px;margin:4px 0}
+ .immersive-orientation-card p{font-size:13px;line-height:1.5;margin-bottom:8px}
+ .immersive-orientation-card button{min-height:42px;margin:3px 0}
+}
+@media(prefers-reduced-motion:reduce){.immersive-entry{transition:none}}

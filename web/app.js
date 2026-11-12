@@ -472,7 +472,7 @@ if(mode==="join")$("#phoneCloud").ontoggle=()=>setTimeout(paint,0);
 let loadedAppearanceFont='';function ensureCloudFont(){if(!state||!document.fonts||!document.fonts.load)return;const font=state.font||'round';if(loadedAppearanceFont===font)return;loadedAppearanceFont=font;const names=font==='mixed'?['JunbaRound','JunbaSerif']:font==='round'?['JunbaRound']:font==='serif'?['JunbaSerif']:[];Promise.all(names.map(n=>document.fonts.load('700 24px '+n))).then(()=>paint()).catch(()=>{});}if(document.fonts)ensureCloudFont();
 
 
-/* Immersive word-cloud view: isolated UI layer for host and participant pages. */
+/* Immersive word-cloud view: host and participant modes with meaningful controls. */
 (()=>{
  if(!['host','join'].includes(mode))return;
  const host=mode==='host';
@@ -493,41 +493,95 @@ let loadedAppearanceFont='';function ensureCloudFont(){if(!state||!document.font
  overlay.setAttribute('aria-label','沉浸式文字雲瀏覽');
  const content=document.createElement('div');content.className='immersive-cloud-content';
  const controls=document.createElement('div');controls.className='immersive-controls';
- const title=document.createElement('strong');title.className='immersive-title';title.textContent='峻爸文字雲 · 即時瀏覽';
- const modeA=document.createElement('button');modeA.type='button';modeA.textContent='純文字雲';
- const modeB=document.createElement('button');modeB.type='button';modeB.textContent='簡易控制';
+ const title=document.createElement('strong');title.className='immersive-title';title.textContent='峻爸文字雲 · 簡易控制';
+ const modeA=document.createElement('button');modeA.type='button';modeA.className='immersive-mode';modeA.textContent='純文字雲';
+ const modeB=document.createElement('button');modeB.type='button';modeB.className='immersive-mode';modeB.textContent='簡易控制';
+ const motionBtn=document.createElement('button');motionBtn.type='button';motionBtn.className='immersive-action';motionBtn.textContent='Ⅱ 暫停動態';
+ const namesBtn=document.createElement('button');namesBtn.type='button';namesBtn.className='immersive-action';namesBtn.textContent='隱藏小名';
+ const likesBtn=document.createElement('button');likesBtn.type='button';likesBtn.className='immersive-action';likesBtn.textContent='隱藏讚數';
  const zoomOut=document.createElement('button');zoomOut.type='button';zoomOut.textContent='－';
  const zoomLabel=document.createElement('span');zoomLabel.className='immersive-zoom-label';
  const zoomIn=document.createElement('button');zoomIn.type='button';zoomIn.textContent='＋';
  const exit=document.createElement('button');exit.type='button';exit.className='immersive-exit';exit.textContent='退出瀏覽 ✕';
  const reveal=document.createElement('button');reveal.type='button';reveal.className='immersive-reveal';reveal.textContent='顯示控制';
- controls.append(title,modeA,modeB,zoomOut,zoomLabel,zoomIn,exit);
+ controls.append(title,modeA,modeB,motionBtn,namesBtn,likesBtn,zoomOut,zoomLabel,zoomIn,exit);
  overlay.append(content,controls,reveal);document.body.append(overlay);
- let placeholder=null,zoom=1,compact=false,nativeFullscreen=false;
+
+ // Mobile orientation guide shown before entering immersive view.
+ const guide=document.createElement('section');guide.className='immersive-orientation-guide';guide.hidden=true;
+ const guideCard=document.createElement('div');guideCard.className='immersive-orientation-card';
+ const guideIcon=document.createElement('div');guideIcon.className='immersive-rotate-icon';guideIcon.textContent='↻';
+ const guideTitle=document.createElement('h2');guideTitle.textContent='建議將手機轉為橫向';
+ const guideText=document.createElement('p');guideText.textContent='橫向畫面能顯示更多文字，閱讀大量投稿更清楚。請先旋轉手機，再開始沉浸式瀏覽。';
+ const guideStart=document.createElement('button');guideStart.type='button';guideStart.className='immersive-start-landscape';guideStart.textContent='我已轉成橫向，開始瀏覽';guideStart.disabled=true;
+ const guidePortrait=document.createElement('button');guidePortrait.type='button';guidePortrait.className='immersive-keep-portrait';guidePortrait.textContent='先以直向模式瀏覽';
+ const guideCancel=document.createElement('button');guideCancel.type='button';guideCancel.className='immersive-guide-cancel';guideCancel.textContent='取消';
+ guideCard.append(guideIcon,guideTitle,guideText,guideStart,guidePortrait,guideCancel);guide.append(guideCard);document.body.append(guide);
+
+ let placeholder=null,zoom=1,nativeFullscreen=false,motionOn=true,namesOn=true,likesOn=true,portraitFallback=false;
+ const isMobile=()=>window.matchMedia('(max-width: 700px)').matches;
+ const isPortrait=()=>window.matchMedia('(orientation: portrait)').matches;
+ const updateGuide=()=>{guideStart.disabled=isPortrait();guideStart.textContent=isPortrait()?'請旋轉手機至橫向':'我已轉成橫向，開始瀏覽';};
+ const showGuide=()=>{updateGuide();guide.hidden=false;document.body.classList.add('immersive-guide-active');};
+ const hideGuide=()=>{guide.hidden=true;document.body.classList.remove('immersive-guide-active');};
  const updateZoom=()=>{cloud.style.setProperty('--immersive-zoom',String(zoom));zoomLabel.textContent=Math.round(zoom*100)+'%';};
- const setMode=showControls=>{compact=showControls;overlay.classList.toggle('show-controls',showControls);overlay.classList.toggle('pure-cloud',!showControls);};
+ const updateToggles=()=>{
+  overlay.classList.toggle('immersive-motion-on',motionOn);
+  overlay.classList.toggle('immersive-names-on',namesOn);
+  overlay.classList.toggle('immersive-likes-on',likesOn);
+  motionBtn.textContent=motionOn?'Ⅱ 暫停動態':'▶ 開啟動態';
+  namesBtn.textContent=namesOn?'隱藏小名':'顯示小名';
+  likesBtn.textContent=likesOn?'隱藏讚數':'顯示讚數';
+ };
+ const setMode=simple=>{
+  overlay.classList.toggle('show-controls',simple);
+  overlay.classList.toggle('pure-cloud',!simple);
+  overlay.classList.toggle('simple-controls',simple);
+  title.textContent=simple?'峻爸文字雲 · 簡易控制':'峻爸文字雲 · 純文字雲';
+  modeA.setAttribute('aria-pressed',String(!simple));
+  modeB.setAttribute('aria-pressed',String(simple));
+  reveal.textContent='顯示控制';
+ };
  const open=async()=>{
   if(!overlay.hidden)return;
   placeholder=document.createComment('immersive-cloud-origin');cloud.parentNode.insertBefore(placeholder,cloud);
   content.append(cloud);overlay.hidden=false;document.body.classList.add('immersive-active');
-  zoom=1;updateZoom();setMode(false);
-  if(overlay.requestFullscreen){try{await overlay.requestFullscreen();nativeFullscreen=true}catch{nativeFullscreen=false}}
-  setTimeout(()=>{if(typeof paint==='function')paint()},80);
+  overlay.classList.toggle('immersive-portrait-layout',portraitFallback);
+  zoom=1;motionOn=true;namesOn=true;likesOn=true;updateZoom();updateToggles();setMode(!portraitFallback);
+  if(!portraitFallback&&overlay.requestFullscreen){try{await overlay.requestFullscreen();nativeFullscreen=true}catch{nativeFullscreen=false}}
+  if(!portraitFallback&&isMobile()&&screen.orientation&&screen.orientation.lock){
+   try{await screen.orientation.lock('landscape')}catch{ /* Keep the visible orientation guide as the fallback. */ }
+  }
+  setTimeout(()=>{if(typeof paint==='function')paint()},100);
  };
  const close=async()=>{
   if(overlay.hidden)return;
   if(placeholder&&placeholder.parentNode){placeholder.parentNode.insertBefore(cloud,placeholder);placeholder.remove();}
   placeholder=null;overlay.hidden=true;document.body.classList.remove('immersive-active');
   if(nativeFullscreen&&document.fullscreenElement===overlay){try{await document.exitFullscreen()}catch{}}
-  nativeFullscreen=false;cloud.style.removeProperty('--immersive-zoom');
+  nativeFullscreen=false;portraitFallback=false;overlay.classList.remove('immersive-portrait-layout');
+  cloud.style.removeProperty('--immersive-zoom');
+  if(screen.orientation&&screen.orientation.unlock){try{screen.orientation.unlock()}catch{}}
   setTimeout(()=>{if(typeof paint==='function')paint()},80);
  };
- entry.addEventListener('click',open);
+ entry.addEventListener('click',()=>{
+  portraitFallback=false;
+  if(isMobile()&&isPortrait()){showGuide();return;}
+  open();
+ });
+ guideStart.addEventListener('click',()=>{if(isPortrait()){updateGuide();return;}hideGuide();portraitFallback=false;open();});
+ guidePortrait.addEventListener('click',()=>{hideGuide();portraitFallback=true;open();});
+ guideCancel.addEventListener('click',hideGuide);
+ window.addEventListener('orientationchange',updateGuide);
+ window.addEventListener('resize',()=>{if(!guide.hidden)updateGuide();if(!overlay.hidden&&typeof paint==='function')paint()});
  modeA.addEventListener('click',()=>setMode(false));
  modeB.addEventListener('click',()=>setMode(true));
  reveal.addEventListener('click',()=>setMode(true));
- zoomOut.addEventListener('click',()=>{zoom=Math.max(.75,Math.round((zoom-.1)*10)/10);updateZoom();});
- zoomIn.addEventListener('click',()=>{zoom=Math.min(1.6,Math.round((zoom+.1)*10)/10);updateZoom();});
+ motionBtn.addEventListener('click',()=>{motionOn=!motionOn;updateToggles();});
+ namesBtn.addEventListener('click',()=>{namesOn=!namesOn;updateToggles();});
+ likesBtn.addEventListener('click',()=>{likesOn=!likesOn;updateToggles();});
+ zoomOut.addEventListener('click',()=>{zoom=Math.max(.65,Math.round((zoom-.1)*10)/10);updateZoom();});
+ zoomIn.addEventListener('click',()=>{zoom=Math.min(1.7,Math.round((zoom+.1)*10)/10);updateZoom();});
  exit.addEventListener('click',close);
  document.addEventListener('keydown',event=>{if(event.key==='Escape'&&!overlay.hidden&&!nativeFullscreen)close();});
  document.addEventListener('fullscreenchange',()=>{if(nativeFullscreen&&!document.fullscreenElement&&!overlay.hidden){nativeFullscreen=false;close();}});
