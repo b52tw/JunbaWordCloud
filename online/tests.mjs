@@ -236,3 +236,44 @@ test('sticker layout sizes characters by engagement, packs around canvas area, a
  assert.ok(app.includes('openFeedbackComposer(word.text)'));
  assert.ok(app.includes("if(style==='stickers')drawSticker"));
 });
+
+test('host can stop every open historical interaction while keeping the current activity open and preserving snapshots',()=>{
+ const c=room();
+ c.submit({text:'歷史甲',round:c.meta().round});
+ const first=c.action({action:'snapshot',title:'歷史活動甲'}).topic;
+ c.submit({text:'目前活動詞語',round:c.meta().round});
+ const second=c.action({action:'snapshot',title:'歷史活動乙'}).topic;
+ c.setHistoryAccess(first.id,'open');
+ c.setHistoryAccess(second.id,'open');
+ assert.equal(c.archivedDetail(first.id).canInteract,true);
+ assert.equal(c.archivedDetail(second.id).canInteract,true);
+ const result=c.stopHistoryInteractions();
+ assert.equal(result.closed,2);
+ assert.equal(result.currentActivityOpen,true);
+ assert.equal(c.archivedDetail(first.id).canInteract,false);
+ assert.equal(c.archivedDetail(second.id).canInteract,false);
+ assert.throws(()=>c.archivedSubmit(first.id,{text:'不應再寫入'},'participant-a'),/僅供查看/);
+ assert.throws(()=>c.archivedLike(second.id,{text:'歷史甲'},'participant-b'),/僅供查看/);
+ assert.equal(c.historyDetail(first.id).words[0].text,'歷史甲');
+ assert.equal(c.meta().open,true);
+ assert.doesNotThrow(()=>c.submit({text:'目前活動仍可投稿',round:c.meta().round},'participant-c'));
+ assert.equal(c.stopHistoryInteractions().closed,0);
+});
+test('host stop-history endpoint broadcasts forced exit without pausing the current activity',()=>{
+ const worker=readFileSync(new URL('./worker.mjs',import.meta.url),'utf8');
+ assert.ok(worker.includes("path==='/api/admin/history/stop-interactions'&&request.method==='POST'"));
+ assert.ok(worker.includes('this.core.stopHistoryInteractions()'));
+ assert.ok(worker.includes("type:'historyExit'"));
+ assert.ok(worker.includes('await this.syncGlobalHistory(room)'));
+});
+test('participant my-history offers close and current-activity exit; host exposes one-click history stop',()=>{
+ const app=readFileSync(new URL('../web/app.js',import.meta.url),'utf8');
+ const page=readFileSync(new URL('../web/index.html',import.meta.url),'utf8');
+ assert.ok(page.includes('id="myHistoryExit"'));
+ assert.ok(page.includes('id="stopHistoryInteractions"'));
+ assert.ok(app.includes('id=\'closeMyHistoryDetail\''));
+ assert.ok(app.includes("window.addEventListener('junba-history-exit',exitToCurrentActivity)"));
+ assert.ok(app.includes("window.dispatchEvent(new Event('junba-history-exit'))"));
+ assert.ok(app.includes("API_ROOT+'/join?room='+encodeURIComponent(participantRoom)"));
+ assert.ok(app.includes('/api/admin/history/stop-interactions'));
+});
