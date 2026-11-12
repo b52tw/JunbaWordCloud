@@ -200,6 +200,12 @@ export class WordCloudRoom extends DurableObject{
    const owner=await this.ensureGlobalHistoryStore(),result=await this.env.BANK.prepare('UPDATE global_topic_history SET library_hidden_at=? WHERE owner_id=? AND id=? AND library_hidden_at IS NULL').bind(new Date().toISOString(),owner,globalDeleteMatch[1]).run();
    if(!result.meta?.changes)throw new UserError('找不到這筆歷史主題',404);return reply(json({id:globalDeleteMatch[1],hidden:true,softDeleted:true}));
   }
+  if(path==='/api/admin/history/stop-interactions'&&request.method==='POST'){
+   const result=this.core.stopHistoryInteractions();
+   await this.syncGlobalHistory(room);
+   this.broadcastEvent({type:'historyExit',message:'主持人已結束歷史互動，請回到目前活動。',closed:result.closed});
+   return reply(json({ok:true,...result}));
+  }
   if(path==='/api/admin/history/diagnostics'&&request.method==='GET')return reply(json(this.core.historyDiagnostics()));
   if(path==='/api/admin/history'&&request.method==='GET')return reply(json(this.core.history({limit:url.searchParams.get('limit'),cursor:url.searchParams.get('cursor')||'0',from:url.searchParams.get('from')||'',to:url.searchParams.get('to')||'',q:url.searchParams.get('q')||'',category:url.searchParams.get('category')||'',includeDeleted:url.searchParams.get('trash')==='1'})));
   if(path==='/api/admin/history/import'&&request.method==='POST'){const input=await body(request),result=this.core.importHistory(input);await this.syncGlobalHistory(room);return reply(json(result))}
