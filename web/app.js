@@ -472,7 +472,7 @@ if(mode==="join")$("#phoneCloud").ontoggle=()=>setTimeout(paint,0);
 let loadedAppearanceFont='';function ensureCloudFont(){if(!state||!document.fonts||!document.fonts.load)return;const font=state.font||'round';if(loadedAppearanceFont===font)return;loadedAppearanceFont=font;const names=font==='mixed'?['JunbaRound','JunbaSerif']:font==='round'?['JunbaRound']:font==='serif'?['JunbaSerif']:[];Promise.all(names.map(n=>document.fonts.load('700 24px '+n))).then(()=>paint()).catch(()=>{});}if(document.fonts)ensureCloudFont();
 
 
-/* Immersive word-cloud view: isolated UI layer for host and participant pages. */
+/* Immersive word-cloud view: host and participant modes with meaningful controls. */
 (()=>{
  if(!['host','join'].includes(mode))return;
  const host=mode==='host';
@@ -493,24 +493,43 @@ let loadedAppearanceFont='';function ensureCloudFont(){if(!state||!document.font
  overlay.setAttribute('aria-label','沉浸式文字雲瀏覽');
  const content=document.createElement('div');content.className='immersive-cloud-content';
  const controls=document.createElement('div');controls.className='immersive-controls';
- const title=document.createElement('strong');title.className='immersive-title';title.textContent='峻爸文字雲 · 即時瀏覽';
- const modeA=document.createElement('button');modeA.type='button';modeA.textContent='純文字雲';
- const modeB=document.createElement('button');modeB.type='button';modeB.textContent='簡易控制';
+ const title=document.createElement('strong');title.className='immersive-title';title.textContent='峻爸文字雲 · 簡易控制';
+ const modeA=document.createElement('button');modeA.type='button';modeA.className='immersive-mode';modeA.textContent='純文字雲';
+ const modeB=document.createElement('button');modeB.type='button';modeB.className='immersive-mode';modeB.textContent='簡易控制';
+ const motionBtn=document.createElement('button');motionBtn.type='button';motionBtn.className='immersive-action';motionBtn.textContent='Ⅱ 暫停動態';
+ const namesBtn=document.createElement('button');namesBtn.type='button';namesBtn.className='immersive-action';namesBtn.textContent='隱藏小名';
+ const likesBtn=document.createElement('button');likesBtn.type='button';likesBtn.className='immersive-action';likesBtn.textContent='隱藏讚數';
  const zoomOut=document.createElement('button');zoomOut.type='button';zoomOut.textContent='－';
  const zoomLabel=document.createElement('span');zoomLabel.className='immersive-zoom-label';
  const zoomIn=document.createElement('button');zoomIn.type='button';zoomIn.textContent='＋';
  const exit=document.createElement('button');exit.type='button';exit.className='immersive-exit';exit.textContent='退出瀏覽 ✕';
  const reveal=document.createElement('button');reveal.type='button';reveal.className='immersive-reveal';reveal.textContent='顯示控制';
- controls.append(title,modeA,modeB,zoomOut,zoomLabel,zoomIn,exit);
+ controls.append(title,modeA,modeB,motionBtn,namesBtn,likesBtn,zoomOut,zoomLabel,zoomIn,exit);
  overlay.append(content,controls,reveal);document.body.append(overlay);
- let placeholder=null,zoom=1,compact=false,nativeFullscreen=false;
+ let placeholder=null,zoom=1,nativeFullscreen=false,motionOn=true,namesOn=true,likesOn=true;
  const updateZoom=()=>{cloud.style.setProperty('--immersive-zoom',String(zoom));zoomLabel.textContent=Math.round(zoom*100)+'%';};
- const setMode=showControls=>{compact=showControls;overlay.classList.toggle('show-controls',showControls);overlay.classList.toggle('pure-cloud',!showControls);};
+ const updateToggles=()=>{
+  overlay.classList.toggle('immersive-motion-on',motionOn);
+  overlay.classList.toggle('immersive-names-on',namesOn);
+  overlay.classList.toggle('immersive-likes-on',likesOn);
+  motionBtn.textContent=motionOn?'Ⅱ 暫停動態':'▶ 開啟動態';
+  namesBtn.textContent=namesOn?'隱藏小名':'顯示小名';
+  likesBtn.textContent=likesOn?'隱藏讚數':'顯示讚數';
+ };
+ const setMode=simple=>{
+  overlay.classList.toggle('show-controls',simple);
+  overlay.classList.toggle('pure-cloud',!simple);
+  overlay.classList.toggle('simple-controls',simple);
+  title.textContent=simple?'峻爸文字雲 · 簡易控制':'峻爸文字雲 · 純文字雲';
+  modeA.setAttribute('aria-pressed',String(!simple));
+  modeB.setAttribute('aria-pressed',String(simple));
+  reveal.textContent='顯示控制';
+ };
  const open=async()=>{
   if(!overlay.hidden)return;
   placeholder=document.createComment('immersive-cloud-origin');cloud.parentNode.insertBefore(placeholder,cloud);
   content.append(cloud);overlay.hidden=false;document.body.classList.add('immersive-active');
-  zoom=1;updateZoom();setMode(false);
+  zoom=1;motionOn=true;namesOn=true;likesOn=true;updateZoom();updateToggles();setMode(false);
   if(overlay.requestFullscreen){try{await overlay.requestFullscreen();nativeFullscreen=true}catch{nativeFullscreen=false}}
   setTimeout(()=>{if(typeof paint==='function')paint()},80);
  };
@@ -526,8 +545,11 @@ let loadedAppearanceFont='';function ensureCloudFont(){if(!state||!document.font
  modeA.addEventListener('click',()=>setMode(false));
  modeB.addEventListener('click',()=>setMode(true));
  reveal.addEventListener('click',()=>setMode(true));
- zoomOut.addEventListener('click',()=>{zoom=Math.max(.75,Math.round((zoom-.1)*10)/10);updateZoom();});
- zoomIn.addEventListener('click',()=>{zoom=Math.min(1.6,Math.round((zoom+.1)*10)/10);updateZoom();});
+ motionBtn.addEventListener('click',()=>{motionOn=!motionOn;updateToggles();});
+ namesBtn.addEventListener('click',()=>{namesOn=!namesOn;updateToggles();});
+ likesBtn.addEventListener('click',()=>{likesOn=!likesOn;updateToggles();});
+ zoomOut.addEventListener('click',()=>{zoom=Math.max(.65,Math.round((zoom-.1)*10)/10);updateZoom();});
+ zoomIn.addEventListener('click',()=>{zoom=Math.min(1.7,Math.round((zoom+.1)*10)/10);updateZoom();});
  exit.addEventListener('click',close);
  document.addEventListener('keydown',event=>{if(event.key==='Escape'&&!overlay.hidden&&!nativeFullscreen)close();});
  document.addEventListener('fullscreenchange',()=>{if(nativeFullscreen&&!document.fullscreenElement&&!overlay.hidden){nativeFullscreen=false;close();}});
