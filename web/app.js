@@ -90,7 +90,7 @@ function render(){
   const old=$('#joinQuestion').textContent;$('#joinQuestion').textContent=state.question;
   if(displayedRound&&displayedRound!==state.round){$('#submitStatus').textContent=old===state.question?'主持人已清空重來，現在可以重新投稿。':'題目已更新，請確認後再送出。';$('#submitStatus').className='submit-status';}
   displayedRound=state.round;
-  $('#joinResponses').textContent=state.responses;$('#joinLikes').textContent=state.likesTotal||0;const stickerMode=state.style==='stickers';const endorseCard=$('.endorse-card');if(endorseCard){endorseCard.classList.toggle('sticker-no-competition',stickerMode);const hideSelectors=['.endorse-heading','.join-stats','.endorse-card>.field-hint','#endorseList','#endorseEmpty'];hideSelectors.forEach(selector=>{const el=endorseCard.querySelector(selector);if(el)el.hidden=stickerMode})}if($('#endorseTitle')){$('#endorseTitle').textContent=state.style==='moles'?'打地鼠！敲中喜歡的詞語':state.style==='fishing'?'釣魚池挑戰':'也來讚同好想法';$('#endorseHelp').textContent=state.style==='moles'?'點選「敲一下」，每次敲中都會累計分數。':state.style==='fishing'?'魚兒浮上水面時，點擊挑戰目標。':'點一下讚同，讓有共鳴的詞語長大。';}$('.participant-cloud').dataset.theme=state.theme;$('#joinCloudEmpty').hidden=state.words.length>0;const sig=JSON.stringify([state.words,state.theme,state.font,state.style,state.motion]);if(sig!==lastPaint){lastPaint=sig;paint()}renderEndorsements();
+  $('#joinResponses').textContent=state.responses;$('#joinLikes').textContent=state.likesTotal||0;const stickerMode=state.style==='stickers';const endorseCard=$('.endorse-card');if(endorseCard){endorseCard.classList.toggle('sticker-mode-active',stickerMode);const showSelectors=['.endorse-heading','.join-stats','.endorse-card>.field-hint','#endorseList','#endorseEmpty'];showSelectors.forEach(selector=>{const el=endorseCard.querySelector(selector);if(el)el.hidden=false})}if($('#endorseTitle')){$('#endorseTitle').textContent=state.style==='moles'?'打地鼠！敲中喜歡的詞語':state.style==='fishing'?'釣魚池挑戰':'也來讚同好想法';$('#endorseHelp').textContent=state.style==='moles'?'點選「敲一下」，每次敲中都會累計分數。':state.style==='fishing'?'魚兒浮上水面時，點擊挑戰目標。':'點一下讚同，讓有共鳴的詞語長大。';}$('.participant-cloud').dataset.theme=state.theme;$('#joinCloudEmpty').hidden=state.words.length>0;const sig=JSON.stringify([state.words,state.theme,state.font,state.style,state.motion]);if(sig!==lastPaint){lastPaint=sig;paint()}renderEndorsements();
   updateSubmit();return;
  }
  const panel=mode==='host'?$('.cloud-panel'):$('#screen');panel.dataset.theme=state.theme;
@@ -125,15 +125,19 @@ function fontFamily(text){const choice=state.font==='mixed'?['round','serif','sa
 function cloudLines(text){const chars=[...text],lines=[];for(let i=0;i<chars.length;i+=12)lines.push(chars.slice(i,i+12).join(''));return lines;}
 function layoutWords(ctx,words,W,H,scale=1){
  if(state.style==='stickers'&&words.length){
-  const minCell=Math.max(58,Math.min(92,Math.min(W,H)*.30));
-  const cols=Math.max(1,Math.floor((W-16)/minCell)),rows=Math.max(1,Math.floor((H-16)/minCell));
-  const visible=words.slice(0,Math.min(words.length,cols*rows,80));
-  const cellW=(W-16)/cols,cellH=(H-16)/rows,cell=Math.min(cellW,cellH)*.94;
-  return visible.map((word,i)=>{
-   const col=i%cols,row=Math.floor(i/cols),x=8+col*cellW+cellW/2,y=8+row*cellH+cellH/2;
-   const size=Math.max(10,Math.min(24,cell*.18));
-   return {text:word.text,count:word.count,likes:word.likes||0,participants:Array.isArray(word.participants)?word.participants:[],score:heat(word),size,font:fontFamily(word.text),lines:[word.text],left:x-cell/2,top:y-cell/2,w:cell,h:cell,x,y:y+cell*.30,color:palette[state.theme][hash(word.text)%7]};
-  });
+  const sorted=[...words].sort((a,b)=>heat(b)-heat(a)).slice(0,60),largest=Math.max(1,heat(sorted[0]));
+  const base=Math.min(118,Math.max(62,Math.min(W,H)*.22)),grid=4,gw=Math.ceil(W/grid),gh=Math.ceil(H/grid),occupied=new Uint8Array(gw*gh),positions=[];
+  function stickerFree(x,y,d){if(x<6||y<6||x+d>W-6||y+d>H-6)return false;const x1=Math.floor(x/grid),y1=Math.floor(y/grid),x2=Math.ceil((x+d)/grid),y2=Math.ceil((y+d)/grid);for(let yy=y1;yy<y2;yy++)for(let xx=x1;xx<x2;xx++)if(occupied[yy*gw+xx])return false;return true}
+  function stickerMark(x,y,d){const x1=Math.floor(x/grid),y1=Math.floor(y/grid),x2=Math.ceil((x+d)/grid),y2=Math.ceil((y+d)/grid);for(let yy=y1;yy<y2;yy++)for(let xx=x1;xx<x2;xx++)occupied[yy*gw+xx]=1}
+  sorted.forEach((word,index)=>{
+   const ratio=Math.sqrt(Math.max(0,heat(word))/largest),diameter=Math.max(48,Math.min(base*(.66+.62*ratio),Math.min(W,H)*.30));
+   const font=fontFamily(word.text),size=Math.max(10,Math.min(25,diameter*(.20+.045*ratio)));
+   ctx.font='700 '+size+'px '+font;const textWidth=ctx.measureText(word.text).width;const fitted=textWidth>diameter*1.42?Math.max(9,size*diameter*1.42/textWidth):size;
+   const d=Math.max(diameter,Math.min(W,H)*.12),phase=(hash(word.text)%628)/100;let placed=null;
+   for(let t=0;t<1800;t++){const angle=t*.43+phase,rad=Math.sqrt(t/1800)*Math.min(W,H)*.49,cx=W/2+Math.cos(angle)*rad,cy=H/2+Math.sin(angle)*rad*.78,x=cx-d/2,y=cy-d/2;if(stickerFree(x,y,d)){stickerMark(x,y,d);placed={x,y,cx,cy};break}}
+   if(!placed)return;
+   positions.push({text:word.text,count:word.count,likes:word.likes||0,participants:Array.isArray(word.participants)?word.participants:[],score:heat(word),size:fitted,font,lines:[word.text],left:placed.x,top:placed.y,w:d,h:d,x:placed.cx,y:placed.cy+d*.28,color:palette[state.theme][hash(word.text)%7]});
+  });return positions;
  }
  if((state.style==='moles'||state.style==='fishing')&&words.length){const visible=words.slice(0,12),largest=heat(visible[0]),cell=Math.min(W,H)/3.15,d=cell*.88,cx=W/2,cy=H/2;return visible.map((word,i)=>{const angle=-Math.PI/2+i*Math.PI*2/visible.length+(state.style==='fishing'?-.12:0),ring=state.style==='fishing'?(visible.length<=4?.16:.31):.34,rad=Math.min(W,H)*ring,px=state.style==='fishing'?cx+Math.cos(angle)*rad:((i%4)+.5)*W/4,py=state.style==='fishing'?cy+Math.sin(angle)*rad*.72:((Math.floor(i/4))+.5)*H/3,x=px-d/2,y=py-d/2;return {text:word.text,count:word.count,likes:word.likes||0,participants:Array.isArray(word.participants)?word.participants:[],score:heat(word),size:Math.max(10,Math.min(19,d*.19*(.72+.28*Math.sqrt(heat(word)/largest)))),font:fontFamily(word.text),lines:[word.text],left:x,top:y,w:d,h:d,x:px,y:y+d*.79,color:palette[state.theme][hash(word.text)%7]}})}
 
@@ -250,13 +254,13 @@ function renderHistoryCards(items,cardsId,statusId,detailId,prevId,nextId,pageId
    const categorySelect=document.createElement('select');categorySelect.setAttribute('aria-label','歷史題目分類');
    historyCategories.forEach(name=>{const option=document.createElement('option');option.value=name;option.textContent=name;categorySelect.append(option)});
    categorySelect.value=historyCategories.includes(item.category)?item.category:'未分類';
-   categorySelect.onchange=async()=>{categorySelect.disabled=true;try{await api('/api/admin/history/'+encodeURIComponent(item.id)+'/category',{method:'POST',body:{category:categorySelect.value},admin:true});historyMessage(statusId,'已將這筆歷史題目分類為「'+categorySelect.value+'」。');await loadHistoryPage(true,cardsId,statusId,detailId,prevId,nextId,pageId)}catch(e){historyError('更新歷史分類失敗',e,statusId);categorySelect.disabled=false}};
+   categorySelect.onchange=async()=>{categorySelect.disabled=true;try{await api('/api/admin/global-history/'+encodeURIComponent(item.id)+'/category',{method:'POST',body:{category:categorySelect.value},admin:true});historyMessage(statusId,'已將這筆歷史題目分類為「'+categorySelect.value+'」。');await loadHistoryPage(true,cardsId,statusId,detailId,prevId,nextId,pageId)}catch(e){historyError('更新歷史分類失敗',e,statusId);categorySelect.disabled=false}};
    categoryRow.append(categorySelect);card.append(categoryRow);
   }
   if(item.deletedAt){
    const state=document.createElement('p');state.textContent='已隱藏：'+new Date(item.deletedAt).toLocaleString('zh-TW');card.append(state);
    const restore=document.createElement('button');restore.type='button';restore.className='primary';restore.textContent='恢復雲端備存（可查看）';
-   restore.onclick=async()=>{restore.disabled=true;try{await api('/api/admin/history/'+encodeURIComponent(item.id)+'/restore',{method:'POST',body:{},admin:true});await loadHistoryPage(true,cardsId,statusId,detailId,prevId,nextId,pageId);historyMessage(statusId,'已恢復為雲端備存，參與者可以查看。')}catch(e){historyError('還原歷史紀錄失敗',e,statusId);restore.disabled=false}};
+   restore.onclick=async()=>{restore.disabled=true;try{await api('/api/admin/global-history/'+encodeURIComponent(item.id)+'/restore',{method:'POST',body:{},admin:true});await loadHistoryPage(true,cardsId,statusId,detailId,prevId,nextId,pageId);historyMessage(statusId,'已恢復為雲端備存，參與者可以查看。')}catch(e){historyError('還原歷史紀錄失敗',e,statusId);restore.disabled=false}};
    card.append(restore);
   }else{
    const mode=item.accessMode|| (item.interactiveOpen?'open':'view');
@@ -275,12 +279,12 @@ async function loadHistoryDetail(id,detailId,statusId){
  try{
   if(typeof id!=='string'||!id)throw new Error('歷史快照識別碼無效。');
   historyMessage(statusId,'正在讀取歷史快照……');
-  const response=await api('/api/admin/history/'+encodeURIComponent(id),{admin:true});
+  const response=await api('/api/admin/global-history/'+encodeURIComponent(id),{admin:true});
   const item=await response.json();
   if(!item||typeof item.id!=='string'||typeof item.question!=='string'||!Array.isArray(item.words))throw new Error('歷史快照內容格式不正確。');
   for(const w of item.words)if(!w||typeof w.text!=='string'||!Number.isFinite(w.count)||!Number.isFinite(w.likes))throw new Error('歷史快照含有無效詞語資料。');
   const root=historyEl(detailId);if(!root){historyMessage(statusId,'歷史檢視區尚未載入；主持台其他功能仍可使用。');return}
-  root.replaceChildren();root.hidden=false;const h=document.createElement('h3');h.textContent=item.title||item.question;const q=document.createElement('p');q.textContent='題目：'+item.question;const meta=document.createElement('p');meta.textContent=(item.category||'未分類')+' · '+new Date(item.createdAt).toLocaleString('zh-TW')+' · '+item.responses+' 次投稿 · '+item.likesTotal+' 個讚同';const list=document.createElement('div');list.className='word-list';item.words.forEach(w=>{const chip=document.createElement('div');chip.className='word-chip';const word=document.createElement('span');word.textContent=w.text;const count=document.createElement('strong');count.textContent='投稿 '+w.count+' · 讚同 '+w.likes+' · 熱度 '+(w.count+w.likes);chip.append(word,count);list.append(chip)});const use=document.createElement('button');use.type='button';use.className='primary';use.textContent='載入主持台並繼續互動（保留原成果）';use.onclick=async()=>{if(!await confirmUI('將目前活動自動保存，再載入這個歷史主題及原有投稿／讚同數，並繼續使用目前 QR Code。確定繼續？'))return;use.disabled=true;try{await api('/api/admin/action',{method:'POST',body:{action:'historyUse',id:item.id},admin:true});toast('已載入歷史主題，原成果保留，現在可繼續投稿。');location.href=API_ROOT+'/host#key='+encodeURIComponent(key)}catch(e){toast(e.message);use.disabled=false}};const exportJSON=document.createElement('button');exportJSON.type='button';exportJSON.className='secondary';exportJSON.textContent='下載這筆 JSON';exportJSON.onclick=()=>exportOneHistory(item.id,'json');const exportCSV=document.createElement('button');exportCSV.type='button';exportCSV.className='secondary';exportCSV.textContent='下載這筆 CSV';exportCSV.onclick=()=>exportOneHistory(item.id,'csv');const actions=document.createElement('div');actions.className='inline-actions';actions.append(exportJSON,exportCSV);root.append(h,q,meta,list,actions,use);historyMessage(statusId,'已載入快照；可下載單筆資料、檢視原成果，或載入主持台繼續互動。');
+  root.replaceChildren();root.hidden=false;const h=document.createElement('h3');h.textContent=item.title||item.question;const q=document.createElement('p');q.textContent='題目：'+item.question;const meta=document.createElement('p');meta.textContent=(item.category||'未分類')+' · '+new Date(item.createdAt).toLocaleString('zh-TW')+' · '+item.responses+' 次投稿 · '+item.likesTotal+' 個讚同';const list=document.createElement('div');list.className='word-list';item.words.forEach(w=>{const chip=document.createElement('div');chip.className='word-chip';const word=document.createElement('span');word.textContent=w.text;const count=document.createElement('strong');count.textContent='投稿 '+w.count+' · 讚同 '+w.likes+' · 熱度 '+(w.count+w.likes);chip.append(word,count);list.append(chip)});const use=document.createElement('button');use.type='button';use.className='primary';use.textContent='載入主持台並繼續互動（保留原成果）';use.onclick=async()=>{if(!await confirmUI('將目前活動自動保存，再載入這個歷史主題及原有投稿／讚同數，並繼續使用目前 QR Code。確定繼續？'))return;use.disabled=true;try{await api('/api/admin/global-history/'+encodeURIComponent(item.id)+'/use',{method:'POST',body:{},admin:true});toast('已載入歷史主題，原成果保留，現在可繼續投稿。');location.href=API_ROOT+'/host#key='+encodeURIComponent(key)}catch(e){toast(e.message);use.disabled=false}};const exportJSON=document.createElement('button');exportJSON.type='button';exportJSON.className='secondary';exportJSON.textContent='下載這筆 JSON';exportJSON.onclick=()=>exportOneHistory(item.id,'json');const exportCSV=document.createElement('button');exportCSV.type='button';exportCSV.className='secondary';exportCSV.textContent='下載這筆 CSV';exportCSV.onclick=()=>exportOneHistory(item.id,'csv');const actions=document.createElement('div');actions.className='inline-actions';actions.append(exportJSON,exportCSV);root.append(h,q,meta,list,actions,use);historyMessage(statusId,'已載入快照；可下載單筆資料、檢視原成果，或載入主持台繼續互動。');
  }catch(e){historyError('無法載入快照',e,statusId)}
 }
 async function loadHistoryPage(reset=false,cardsId='hostHistoryCards',statusId='hostHistoryStatus',detailId='hostHistoryDetail',prevId='hostHistoryPrev',nextId='hostHistoryNext',pageId='hostHistoryPageLabel'){
@@ -288,12 +292,12 @@ async function loadHistoryPage(reset=false,cardsId='hostHistoryCards',statusId='
  if(reset){historyState.cursor='0';historyState.stack=[];historyState.page=1;historyState.next=null}
  historyState.busy=true;historyMessage(statusId,'正在載入歷史主題……');
  try{
-  const from=historyEl('historyFrom')?.value||'',to=historyEl('historyTo')?.value||'',q=historyEl('historyKeyword')?.value.trim()||'',category=historyEl('historyCategoryFilter')?.value||'';const filter=(from?'&from='+encodeURIComponent(from):'')+(to?'&to='+encodeURIComponent(to):'')+(q?'&q='+encodeURIComponent(q):'')+(category?'&category='+encodeURIComponent(category):'')+(historyTrashMode?'&trash=1':'');const response=await api('/api/admin/history?limit=20&cursor='+encodeURIComponent(historyState.cursor)+filter,{admin:true});
+  const from=historyEl('historyFrom')?.value||'',to=historyEl('historyTo')?.value||'',q=historyEl('historyKeyword')?.value.trim()||'',category=historyEl('historyCategoryFilter')?.value||'';const filter=(from?'&from='+encodeURIComponent(from):'')+(to?'&to='+encodeURIComponent(to):'')+(q?'&q='+encodeURIComponent(q):'')+(category?'&category='+encodeURIComponent(category):'')+(historyTrashMode?'&trash=1':'');const response=await api('/api/admin/global-history?limit=20&cursor='+encodeURIComponent(historyState.cursor)+filter,{admin:true});
   const page=await response.json();
   if(!page||!Array.isArray(page.items)||!Number.isFinite(page.total)||!Number.isFinite(page.limit)||(page.nextCursor!==null&&typeof page.nextCursor!=='string'))throw new Error('歷史列表回應格式不正確。');
   if(page.total===0){try{const diagnostic=await(await api('/api/admin/history/diagnostics',{admin:true})).json();historyMessage(statusId,'歷史資料診斷：資料總數 '+diagnostic.total+' 筆；一般 '+diagnostic.visible+' 筆；隱藏 '+diagnostic.hidden+' 筆；已刪除 '+diagnostic.deleted+' 筆。'+(diagnostic.latestCreatedAt?'最近快照：'+diagnostic.latestCreatedAt:'尚無任何快照記錄')+'.')}catch(e){historyMessage(statusId,'歷史列表為 0 筆；診斷讀取失敗：'+e.message)}}
   historyState.next=page.nextCursor;
-  if(renderHistoryCards(page.items,cardsId,statusId,detailId,prevId,nextId,pageId))historyMessage(statusId,'共 '+page.total+' 筆歷史主題；每頁 '+page.limit+' 筆。');
+  if(renderHistoryCards(page.items,cardsId,statusId,detailId,prevId,nextId,pageId))historyMessage(statusId,'跨活動歷史總庫：共 '+page.total+' 筆；每頁 '+page.limit+' 筆。');
  }catch(e){historyError('無法載入歷史列表',e,statusId)}finally{historyState.busy=false}
 }
 function reloadHistoryPage(){return mode==='history'?loadHistoryPage(false,'historyCards','historyStatus','historyDetail','historyPrev','historyNext','historyPageLabel'):loadHistoryPage(false)}
@@ -304,12 +308,12 @@ async function collectHistoryForExport(){
  const filter=(from?'&from='+encodeURIComponent(from):'')+(to?'&to='+encodeURIComponent(to):'')+(q?'&q='+encodeURIComponent(q):'')+(category?'&category='+encodeURIComponent(category):'');
  const records=[];let cursor='0',pageCount=0;
  do{
-  const response=await api('/api/admin/history?limit=50&cursor='+encodeURIComponent(cursor)+filter,{admin:true});
+  const response=await api('/api/admin/global-history?limit=50&cursor='+encodeURIComponent(cursor)+filter,{admin:true});
   if(!response.ok)throw new Error('讀取歷史清單失敗（HTTP '+response.status+'）');
   const page=await response.json();
   if(!Array.isArray(page.items))throw new Error('歷史清單格式不正確');
   for(const item of page.items){
-   const detailResponse=await api('/api/admin/history/'+encodeURIComponent(item.id),{admin:true});
+   const detailResponse=await api('/api/admin/global-history/'+encodeURIComponent(item.id),{admin:true});
    if(!detailResponse.ok)throw new Error('讀取「'+(item.title||item.question||item.id)+'」失敗');
    records.push(await detailResponse.json());
   }
