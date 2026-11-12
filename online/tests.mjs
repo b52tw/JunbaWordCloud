@@ -312,3 +312,19 @@ test('immersive controls have distinct pure-cloud and useful simple-control acti
  assert.match(css,/immersive-names-on/);
  assert.match(css,/immersive-likes-on/);
 });
+
+
+test('mobile immersive entry explains landscape before fullscreen and offers portrait fallback',()=>{
+ const app=readFileSync(new URL('../web/app.js',import.meta.url),'utf8');
+ const css=readFileSync(new URL('../web/style.css',import.meta.url),'utf8');
+ assert.match(app,/建議將手機轉為橫向/);
+ assert.match(app,/橫向畫面能顯示更多文字/);
+ assert.match(app,/我已轉成橫向，開始瀏覽/);
+ assert.match(app,/先以直向模式瀏覽/);
+ assert.match(app,/orientationchange/);
+ assert.match(app,/guideStart\.disabled=isPortrait\(\)/);
+ assert.match(app,/screen\.orientation\.lock\('landscape'\)/);
+ assert.match(css,/\.immersive-orientation-guide/);
+ assert.match(css,/\.immersive-entry/);
+ assert.match(css,/orientation:landscape/);
+});
