@@ -145,3 +145,24 @@
 
 .history-filter-grid{display:grid;grid-template-columns:minmax(220px,1.6fr) minmax(150px,1fr);gap:10px;margin:14px 0}.history-filter-grid label,.history-category-row{display:grid;gap:6px;font-size:12px;color:var(--muted)}.history-filter-grid input,.history-filter-grid select,.history-category-row select{width:100%;min-width:0;min-height:40px;border:1px solid var(--line);border-radius:9px;padding:8px 10px;background:#fff;color:var(--ink);font:inherit}.history-category-row{display:grid;grid-template-columns:48px minmax(0,1fr);align-items:center;gap:8px;margin:3px 0 7px}.history-category-row select{min-height:34px;padding:5px 8px}.history-card .history-category-row{margin-top:4px}@media(max-width:600px){.history-filter-grid{grid-template-columns:1fr;gap:8px}.history-dialog .inline-actions{align-items:stretch}.history-dialog .inline-actions>label{min-width:calc(50% - 8px)}}
 .my-history-detail-actions{display:flex;flex-wrap:wrap;align-items:center;gap:10px;margin:0 0 18px;padding:12px 0;border-bottom:1px solid var(--line)}.my-history-detail-actions a,.my-history-detail-actions button{display:inline-flex;align-items:center;justify-content:center;min-height:40px;padding:9px 14px;border-radius:10px;text-decoration:none}.my-history-detail-actions a{color:#fff}.history-page .top-actions #myHistoryExit{min-height:40px}.history-page #myHistoryDetail[hidden]{display:none}@media(max-width:640px){.my-history-detail-actions{display:grid;grid-template-columns:1fr 1fr}.my-history-detail-actions a,.my-history-detail-actions button{width:100%;font-size:14px}.history-page .topbar{gap:10px}.history-page #myHistoryExit{white-space:nowrap;padding:9px 12px;font-size:13px}}
+
+/* Immersive view shared by host and participant; the projection page is untouched. */
+.immersive-entry{min-height:40px;font-weight:800;white-space:nowrap}
+#phoneCloud>.immersive-entry{display:inline-flex;margin:0 0 10px;align-items:center;justify-content:center;padding:9px 13px;border-radius:10px}
+.immersive-overlay[hidden]{display:none!important}
+.immersive-overlay{position:fixed;inset:0;z-index:100000;background:#101b30;color:#fff;display:flex;flex-direction:column;padding:calc(10px + env(safe-area-inset-top,0px)) calc(12px + env(safe-area-inset-right,0px)) calc(10px + env(safe-area-inset-bottom,0px)) calc(12px + env(safe-area-inset-left,0px));}
+.immersive-cloud-content{position:relative;flex:1;min-height:0;width:100%;overflow:hidden;border-radius:14px;background:#151f33}
+.immersive-cloud-content>.cloud-stage,.immersive-cloud-content>.participant-cloud{position:absolute!important;inset:0!important;width:100%!important;height:100%!important;min-height:0!important;max-height:none!important;margin:0!important;border-radius:0!important}
+.immersive-cloud-content canvas{transform:scale(var(--immersive-zoom,1));transform-origin:center center}
+.immersive-cloud-content .bubble-layer{transform:scale(var(--immersive-zoom,1));transform-origin:center center}
+.immersive-controls{display:none;flex:0 0 auto;align-items:center;justify-content:center;gap:8px;flex-wrap:wrap;padding:10px 0 2px}
+.immersive-controls button,.immersive-reveal{min-height:42px;border:1px solid #ffffff38;border-radius:10px;background:#263650;color:#fff;padding:8px 13px;font:inherit;font-size:13px;font-weight:750;touch-action:manipulation}
+.immersive-controls button:focus-visible,.immersive-reveal:focus-visible{outline:3px solid #ffd078;outline-offset:2px}
+.immersive-controls .immersive-exit{background:#f4774d;border-color:#f4774d}
+.immersive-title{font-size:13px;margin-right:auto;white-space:nowrap}
+.immersive-zoom-label{min-width:48px;text-align:center;font-variant-numeric:tabular-nums;font-size:12px}
+.immersive-reveal{display:none;position:absolute;top:calc(14px + env(safe-area-inset-top,0px));right:calc(14px + env(safe-area-inset-right,0px));background:#263650eF}
+.immersive-overlay.show-controls .immersive-controls{display:flex}
+.immersive-overlay.pure-cloud .immersive-reveal{display:block}
+body.immersive-active{overflow:hidden!important}
+@media(max-width:600px){.immersive-controls{gap:5px}.immersive-controls button{min-height:44px;padding:8px 10px;font-size:12px}.immersive-title{width:100%;text-align:center;margin:0 0 3px}.immersive-cloud-content{border-radius:10px}}
