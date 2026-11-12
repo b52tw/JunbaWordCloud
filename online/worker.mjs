@@ -153,11 +153,9 @@ export class WordCloudRoom extends DurableObject{
   if(globalAccessMatch&&request.method==='POST'){
    const input=await body(request),owner=await this.ensureGlobalHistoryStore(),row=await this.env.BANK.prepare('SELECT room_id FROM global_topic_history WHERE owner_id=? AND id=?').bind(owner,globalAccessMatch[1]).first();
    if(!row)throw new UserError('找不到這筆歷史主題',404);
+   if(row.room_id!=='imported'&&row.room_id!==room)throw new UserError('跨活動歷史可搜尋、預覽與載入；互動開放狀態請回到原活動主持台調整。',403);
    if(row.room_id!=='imported'){
-    const stub=this.env.ROOMS.get(this.env.ROOMS.idFromName(row.room_id));
-    const forwarded=await stub.fetch(new Request('https://internal/r/'+row.room_id+'/api/admin/history/'+globalAccessMatch[1]+'/access',{method:'POST',headers:{Authorization:request.headers.get('Authorization')||'', 'Content-Type':'application/json'},body:JSON.stringify(input)}));
-    const result=await forwarded.json();if(!forwarded.ok)throw new UserError(result.error||'更新歷史權限失敗',forwarded.status);
-    return reply(json(result));
+    const result=this.core.setHistoryAccess(globalAccessMatch[1],input.mode);await this.syncGlobalHistory(room);return reply(json({ok:true,...result}));
    }
    const mode=['view','open','hidden'].includes(input.mode)?input.mode:'view';
    await this.env.BANK.prepare('UPDATE global_topic_history SET access_mode=? WHERE owner_id=? AND id=?').bind(mode,owner,globalAccessMatch[1]).run();
@@ -176,13 +174,15 @@ export class WordCloudRoom extends DurableObject{
   }
   const globalRestoreMatch=path.match(/^\/api\/admin\/global-history\/([a-f0-9-]{36})\/restore$/);
   if(globalRestoreMatch&&request.method==='POST'){
-   const owner=await this.ensureGlobalHistoryStore(),row=await this.env.BANK.prepare('SELECT room_id FROM global_topic_history WHERE owner_id=? AND id=?').bind(owner,globalRestoreMatch[1]).first();
+   const owner=await this.ensureGlobalHistoryStore(),row=await this.env.BANK.prepare('SELECT room_id,library_hidden_at,deleted_at FROM global_topic_history WHERE owner_id=? AND id=?').bind(owner,globalRestoreMatch[1]).first();
    if(!row)throw new UserError('找不到這筆歷史主題',404);
+   if(row.room_id!=='imported'&&row.room_id!==room){
+    if(!row.library_hidden_at)throw new UserError('這筆紀錄已在原活動回收區，請回到原活動主持台還原。',403);
+    await this.env.BANK.prepare('UPDATE global_topic_history SET library_hidden_at=NULL WHERE owner_id=? AND id=?').bind(owner,globalRestoreMatch[1]).run();
+    return reply(json({id:globalRestoreMatch[1],restored:true,libraryOnly:true}));
+   }
    if(row.room_id!=='imported'){
-    const stub=this.env.ROOMS.get(this.env.ROOMS.idFromName(row.room_id));
-    const forwarded=await stub.fetch(new Request('https://internal/r/'+row.room_id+'/api/admin/history/'+globalRestoreMatch[1]+'/restore',{method:'POST',headers:{Authorization:request.headers.get('Authorization')||'', 'Content-Type':'application/json'},body:'{}'}));
-    const result=await forwarded.json();if(!forwarded.ok)throw new UserError(result.error||'恢復歷史紀錄失敗',forwarded.status);
-    return reply(json(result));
+    const result=this.core.restoreHistory(globalRestoreMatch[1]);await this.syncGlobalHistory(room);return reply(json(result));
    }
    await this.env.BANK.prepare("UPDATE global_topic_history SET library_hidden_at=NULL,access_mode='view' WHERE owner_id=? AND id=?").bind(owner,globalRestoreMatch[1]).run();
    return reply(json({id:globalRestoreMatch[1],restored:true}));
