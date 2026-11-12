@@ -356,7 +356,8 @@ test('immersive view shows the current activity question and tap-anywhere toggle
  assert.match(app,/event\.target\.closest\('\.immersive-controls,\.immersive-reveal'\)/);
  assert.match(app,/setMode\(!overlay\.classList\.contains\('show-controls'\)\)/);
  assert.match(app,/state\.question,state\.words,state\.theme/);
- assert.match(app,/event\.currentTarget\.clientWidth\/Math\.max\(1,rect\.width\)/);
+ assert.match(app,/canvas\.clientWidth\/Math\.max\(1,rect\.width\)/);
+ assert.match(app,/const canvas=event\.currentTarget,rect=canvas\.getBoundingClientRect\(\)/);
  assert.match(css,/\.immersive-topic-text/);
  assert.match(css,/orientation:landscape/);
 });
