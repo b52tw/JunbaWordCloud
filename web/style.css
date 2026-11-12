@@ -254,3 +254,29 @@ body.immersive-active{overflow:hidden!important}
  100%{opacity:0;transform:translate(-50%,-155%) scale(.85)}
 }
 @media(prefers-reduced-motion:reduce){.direct-like-feedback{animation:none;opacity:0}}
+
+
+/* Activity question remains visible in every immersive view. */
+.immersive-topic{
+ flex:0 0 auto;display:flex;flex-direction:column;align-items:center;justify-content:center;
+ gap:3px;width:100%;padding:5px 10px 11px;text-align:center;color:#fff;
+}
+.immersive-topic-label{
+ font-size:10px;letter-spacing:1.5px;font-weight:800;color:#aebdd2;
+}
+.immersive-topic-text{
+ display:block;width:100%;max-width:1200px;font-size:clamp(17px,2.2vw,27px);
+ font-weight:900;line-height:1.3;overflow-wrap:anywhere;text-wrap:balance;
+ text-shadow:0 2px 8px #0006;
+}
+.immersive-cloud-content{flex:1 1 auto;min-height:0}
+@media(max-width:700px){
+ .immersive-topic{padding:3px 5px 8px;gap:2px}
+ .immersive-topic-label{font-size:9px}
+ .immersive-topic-text{font-size:clamp(16px,4.3vw,22px);line-height:1.25}
+}
+@media(max-height:460px) and (orientation:landscape){
+ .immersive-topic{padding:1px 5px 5px}
+ .immersive-topic-label{font-size:8px}
+ .immersive-topic-text{font-size:clamp(14px,2.8vw,19px)}
+}
