@@ -71,6 +71,48 @@ export class WordCloudRoom extends DurableObject{
  async initialize(adminHash){this.core.create(adminHash);return true}
  broadcast(){this.broadcastEvent(this.core.state())}
  broadcastEvent(payload){const message=JSON.stringify(payload);for(const ws of this.ctx.getWebSockets()){try{ws.send(message)}catch{try{ws.close(1011,'重新連線')}catch{}}}}
+ async ensureGlobalHistoryStore(){
+  if(!this.env.BANK)throw new UserError('跨活動歷史總庫尚未連接 Staging D1',503);
+  if(!this.env.ACTIVITY_CODE)throw new UserError('歷史總庫識別設定未完成',503);
+  const owner=await digest('junba-global-history:'+this.env.ACTIVITY_CODE);
+  await this.env.BANK.prepare("CREATE TABLE IF NOT EXISTS global_topic_history (id TEXT PRIMARY KEY, owner_id TEXT NOT NULL, room_id TEXT NOT NULL, title TEXT NOT NULL, question TEXT NOT NULL, created_at TEXT NOT NULL, category TEXT NOT NULL DEFAULT '未分類', access_mode TEXT NOT NULL DEFAULT 'view', deleted_at TEXT, library_hidden_at TEXT, data TEXT NOT NULL)").run();
+  await this.env.BANK.prepare('CREATE INDEX IF NOT EXISTS global_topic_history_owner_date ON global_topic_history(owner_id,created_at DESC)').run();
+  await this.env.BANK.prepare('CREATE INDEX IF NOT EXISTS global_topic_history_owner_room ON global_topic_history(owner_id,room_id)').run();
+  return owner;
+ }
+ async syncGlobalHistory(room){
+  const owner=await this.ensureGlobalHistoryStore();
+  const rows=this.ctx.storage.sql.exec('SELECT id,title,question,created_at,data,access_mode,deleted_at,category FROM topic_history').toArray();
+  let inserted=0;
+  for(const row of rows){
+   let topic;try{topic=JSON.parse(row.data)}catch{continue}
+   if(topic?._globalSource)continue;
+   const result=await this.env.BANK.prepare("INSERT OR IGNORE INTO global_topic_history(id,owner_id,room_id,title,question,created_at,category,access_mode,deleted_at,data) VALUES(?,?,?,?,?,?,?,?,?,?)").bind(row.id,owner,room,row.title,row.question,row.created_at,row.category||'未分類',row.access_mode||'view',row.deleted_at||null,row.data).run();
+   if(result.meta?.changes)inserted++;
+   await this.env.BANK.prepare('UPDATE global_topic_history SET access_mode=?,deleted_at=? WHERE owner_id=? AND id=? AND room_id=?').bind(row.access_mode||'view',row.deleted_at||null,owner,row.id,room).run();
+  }
+  return {scanned:rows.length,inserted};
+ }
+ async globalHistoryPage(room,url){
+  const owner=await this.ensureGlobalHistoryStore();
+  await this.syncGlobalHistory(room);
+  const size=Math.max(1,Math.min(50,Number.parseInt(url.searchParams.get('limit')||'20',10)||20));
+  const offset=Math.max(0,Math.min(1000000,Number.parseInt(url.searchParams.get('cursor')||'0',10)||0));
+  const clauses=['owner_id=?'],args=[owner];
+  if(url.searchParams.get('trash')==='1')clauses.push("(library_hidden_at IS NOT NULL OR deleted_at IS NOT NULL OR access_mode='hidden')");
+  else clauses.push("library_hidden_at IS NULL AND deleted_at IS NULL AND COALESCE(access_mode,'view')!='hidden'");
+  const from=url.searchParams.get('from')||'',to=url.searchParams.get('to')||'',q=String(url.searchParams.get('q')||'').trim().slice(0,100),category=String(url.searchParams.get('category')||'');
+  if(/^[0-9]{4}-[0-9]{2}-[0-9]{2}$/.test(from)){clauses.push('created_at>=?');args.push(from+'T00:00:00.000Z')}
+  if(/^[0-9]{4}-[0-9]{2}-[0-9]{2}$/.test(to)){clauses.push('created_at<?');args.push(new Date(Date.parse(to+'T00:00:00.000Z')+86400000).toISOString())}
+  if(q){clauses.push('(title LIKE ? OR question LIKE ? OR data LIKE ?)');const term='%'+q+'%';args.push(term,term,term)}
+  if(category){clauses.push('category=?');args.push(category)}
+  const where=' WHERE '+clauses.join(' AND ');
+  const count=await this.env.BANK.prepare('SELECT COUNT(*) AS n FROM global_topic_history'+where).bind(...args).first();
+  const query=await this.env.BANK.prepare('SELECT id,room_id,title,question,created_at,category,access_mode,deleted_at,library_hidden_at,data FROM global_topic_history'+where+' ORDER BY created_at DESC LIMIT ? OFFSET ?').bind(...args,size+1,offset).all();
+  const rows=query.results||[],hasMore=rows.length>size;
+  const items=rows.slice(0,size).map(row=>{let data={};try{data=JSON.parse(row.data)}catch{}return {id:row.id,roomId:row.room_id,title:row.title,question:row.question,createdAt:row.created_at,category:row.category||'未分類',responses:data.responses||0,likesTotal:data.likesTotal||0,wordCount:data.wordCount??(Array.isArray(data.words)?data.words.length:0),accessMode:row.access_mode||'view',deletedAt:row.deleted_at||row.library_hidden_at||null,libraryHiddenAt:row.library_hidden_at||null}});
+  return {items,nextCursor:hasMore?String(offset+size):null,limit:size,total:Number(count?.n)||0,scope:'all-activities'};
+ }
  async fetch(request){const url=new URL(request.url),match=url.pathname.match(/^\/r\/([a-z0-9]{12,40})(.*)$/),room=match?.[1],path=match?.[2]||'/';let newCookie=false;let voter=(request.headers.get('Cookie')||'').match(/(?:^|;\s*)junba_wordcloud_voter=([a-f0-9]{32})(?:;|$)/)?.[1];if(!voter){voter=token();newCookie=true}
  const reply=r=>{if(newCookie)r.headers.append('Set-Cookie','junba_wordcloud_voter='+voter+'; Path=/; Max-Age=31536000; HttpOnly; SameSite=Strict'+(url.protocol==='https:'?'; Secure':''));return r};
  try{
@@ -92,9 +134,53 @@ export class WordCloudRoom extends DurableObject{
   if(feedbackReadMatch&&request.method==='POST')return reply(json(this.core.markFeedbackRead(feedbackReadMatch[1],voter)));
   if(path==='/api/join'&&request.method==='GET')return reply(json({join,shortJoin,room}));
   if(path==='/api/admin/config')return reply(json({links:[join],join,shortJoin,shortHost,dataPath:'活動雲端儲存',version:'1.3.0',online:true,questions:meta.questions,theme:meta.theme,font:meta.font,style:meta.style,motion:meta.motion,networkIcon:meta.networkIcon||'ai',motionAmplitude:meta.motionAmplitude||'medium',motionSpeed:meta.motionSpeed||'normal',participantHistoryEnabled:meta.participantHistoryEnabled!==false}));
+  if(path==='/api/admin/global-history'&&request.method==='GET')return reply(json(await this.globalHistoryPage(room,url)));
+  if(path==='/api/admin/global-history/import'&&request.method==='POST'){
+   const input=await body(request);const payload=input&&Array.isArray(input.items)?input.items:Array.isArray(input)?input:null;
+   if(!payload||payload.length>500)throw new UserError('歷史匯入檔格式不正確，或超過 500 筆');
+   const owner=await this.ensureGlobalHistoryStore();let inserted=0,skipped=0;
+   for(const raw of payload){
+    const item=raw?.item||raw;if(!item||typeof item.question!=='string'||!Array.isArray(item.words))throw new UserError('歷史檔案內容不完整');
+    const id=typeof item.id==='string'&&/^[a-f0-9-]{36}$/i.test(item.id)?item.id:token();
+    const exists=await this.env.BANK.prepare('SELECT id FROM global_topic_history WHERE owner_id=? AND id=?').bind(owner,id).first();if(exists){skipped++;continue}
+    const createdAt=Number.isFinite(Date.parse(item.createdAt||''))?new Date(item.createdAt).toISOString():new Date().toISOString(),title=String(item.title||new Date(createdAt).toLocaleString('zh-TW',{hour12:false})+'｜'+item.question);
+    const category=['未分類','破冰交流','職涯探索','求職實戰','職場適應','AI與數位','永續議題','其他'].includes(item.category)?item.category:'未分類';
+    await this.env.BANK.prepare("INSERT INTO global_topic_history(id,owner_id,room_id,title,question,created_at,category,access_mode,deleted_at,library_hidden_at,data) VALUES(?,?,?,?,?,?,?,'view',NULL,NULL,?)").bind(id,owner,'imported',title,item.question,createdAt,category,JSON.stringify({...item,id,title,createdAt,category})).run();inserted++;
+   }
+   return reply(json({ok:true,inserted,skipped,total:payload.length}));
+  }
+  const globalHistoryMatch=path.match(/^\/api\/admin\/global-history\/([a-f0-9-]{36})$/);
+  if(globalHistoryMatch&&request.method==='GET'){
+   const owner=await this.ensureGlobalHistoryStore(),row=await this.env.BANK.prepare('SELECT id,room_id,title,question,created_at,category,access_mode,deleted_at,library_hidden_at,data FROM global_topic_history WHERE owner_id=? AND id=?').bind(owner,globalHistoryMatch[1]).first();
+   if(!row)throw new UserError('找不到這筆歷史主題',404);let item=JSON.parse(row.data);return reply(json({...item,id:row.id,title:row.title,question:row.question,createdAt:row.created_at,category:row.category||'未分類',roomId:row.room_id,accessMode:row.access_mode||'view',deletedAt:row.deleted_at||row.library_hidden_at||null}));
+  }
+  const globalCategoryMatch=path.match(/^\/api\/admin\/global-history\/([a-f0-9-]{36})\/category$/);
+  if(globalCategoryMatch&&request.method==='POST'){
+   const input=await body(request),categories=['未分類','破冰交流','職涯探索','求職實戰','職場適應','AI與數位','永續議題','其他'];if(!categories.includes(input.category))throw new UserError('不支援的歷史分類');
+   const owner=await this.ensureGlobalHistoryStore(),result=await this.env.BANK.prepare('UPDATE global_topic_history SET category=? WHERE owner_id=? AND id=? AND library_hidden_at IS NULL').bind(input.category,owner,globalCategoryMatch[1]).run();
+   if(!result.meta?.changes)throw new UserError('找不到這筆歷史主題',404);return reply(json({id:globalCategoryMatch[1],category:input.category,updated:true}));
+  }
+  const globalRestoreMatch=path.match(/^\/api\/admin\/global-history\/([a-f0-9-]{36})\/restore$/);
+  if(globalRestoreMatch&&request.method==='POST'){
+   const owner=await this.ensureGlobalHistoryStore(),result=await this.env.BANK.prepare("UPDATE global_topic_history SET library_hidden_at=NULL,access_mode=CASE WHEN deleted_at IS NULL THEN 'view' ELSE access_mode END WHERE owner_id=? AND id=?").bind(owner,globalRestoreMatch[1]).run();
+   if(!result.meta?.changes)throw new UserError('找不到這筆歷史主題',404);return reply(json({id:globalRestoreMatch[1],restored:true}));
+  }
+  const globalUseMatch=path.match(/^\/api\/admin\/global-history\/([a-f0-9-]{36})\/use$/);
+  if(globalUseMatch&&request.method==='POST'){
+   const owner=await this.ensureGlobalHistoryStore(),row=await this.env.BANK.prepare("SELECT data,category FROM global_topic_history WHERE owner_id=? AND id=? AND library_hidden_at IS NULL AND deleted_at IS NULL").bind(owner,globalUseMatch[1]).first();
+   if(!row)throw new UserError('找不到可使用的歷史題目',404);
+   const source=JSON.parse(row.data),localId=crypto.randomUUID(),copy={...source,id:localId,createdAt:new Date().toISOString(),category:row.category||'未分類',_globalSource:globalUseMatch[1]};
+   this.core.importHistory({items:[copy]});this.core.action({action:'historyUse',id:localId});await this.syncGlobalHistory(room);this.broadcast();
+   return reply(json({ok:true,question:copy.question,sourceId:globalUseMatch[1],localId,sourceImmutable:true}));
+  }
+  const globalDeleteMatch=path.match(/^\/api\/admin\/global-history\/([a-f0-9-]{36})$/);
+  if(globalDeleteMatch&&request.method==='DELETE'){
+   const owner=await this.ensureGlobalHistoryStore(),result=await this.env.BANK.prepare('UPDATE global_topic_history SET library_hidden_at=? WHERE owner_id=? AND id=? AND library_hidden_at IS NULL').bind(new Date().toISOString(),owner,globalDeleteMatch[1]).run();
+   if(!result.meta?.changes)throw new UserError('找不到這筆歷史主題',404);return reply(json({id:globalDeleteMatch[1],hidden:true,softDeleted:true}));
+  }
   if(path==='/api/admin/history/diagnostics'&&request.method==='GET')return reply(json(this.core.historyDiagnostics()));
   if(path==='/api/admin/history'&&request.method==='GET')return reply(json(this.core.history({limit:url.searchParams.get('limit'),cursor:url.searchParams.get('cursor')||'0',from:url.searchParams.get('from')||'',to:url.searchParams.get('to')||'',q:url.searchParams.get('q')||'',category:url.searchParams.get('category')||'',includeDeleted:url.searchParams.get('trash')==='1'})));
-  if(path==='/api/admin/history/import'&&request.method==='POST'){const input=await body(request);return reply(json(this.core.importHistory(input)))}
+  if(path==='/api/admin/history/import'&&request.method==='POST'){const input=await body(request),result=this.core.importHistory(input);await this.syncGlobalHistory(room);return reply(json(result))}
   const historyAccessMatch=path.match(/^\/api\/admin\/history\/([a-f0-9-]{36})\/access$/);
   if(historyAccessMatch&&request.method==='POST'){const input=await body(request);return reply(json({ok:true,...this.core.setHistoryAccess(historyAccessMatch[1],input.mode)}))}
   const historyOpenMatch=path.match(/^\/api\/admin\/history\/([a-f0-9-]{36})\/open$/);
@@ -102,7 +188,7 @@ export class WordCloudRoom extends DurableObject{
   const historyRenameMatch=path.match(/^\/api\/admin\/history\/([a-f0-9-]{36})\/rename$/);
   if(historyRenameMatch&&request.method==='POST'){const input=await body(request);return reply(json(this.core.renameHistory(historyRenameMatch[1],input.title)))}
   const historyCategoryMatch=path.match(/^\/api\/admin\/history\/([a-f0-9-]{36})\/category$/);
-  if(historyCategoryMatch&&request.method==='POST'){const input=await body(request);return reply(json(this.core.setHistoryCategory(historyCategoryMatch[1],input.category)))}
+  if(historyCategoryMatch&&request.method==='POST'){const input=await body(request),result=this.core.setHistoryCategory(historyCategoryMatch[1],input.category);await this.syncGlobalHistory(room);const owner=await this.ensureGlobalHistoryStore();await this.env.BANK.prepare('UPDATE global_topic_history SET category=? WHERE owner_id=? AND id=?').bind(input.category,owner,historyCategoryMatch[1]).run();return reply(json(result))}
   const historyRestoreMatch=path.match(/^\/api\/admin\/history\/([a-f0-9-]{36})\/restore$/);
   if(historyRestoreMatch&&request.method==='POST')return reply(json(this.core.restoreHistory(historyRestoreMatch[1])));
   const historyMatch=path.match(/^\/api\/admin\/history\/([a-f0-9-]{36})$/);
@@ -125,7 +211,7 @@ export class WordCloudRoom extends DurableObject{
     if(input.room!==room)throw new UserError('活動連結不正確，請重新掃碼',403);
     const now=Date.now(),recent=(this.rates.get(voter)||[]).filter(t=>now-t<10000);if(recent.length>=10)throw new UserError('送出太快囉，請稍等 10 秒',429);this.rates.set(voter,[...recent,now]);if(this.rates.size>5000)for(const [k,v]of this.rates)if(now-v[v.length-1]>10000)this.rates.delete(k);
     if(path==='/api/submit')this.core.submit(input,voter);else this.core.like(input,voter);
-   }else if(path==='/api/admin/action')this.core.action(input);else throw new UserError('不支援的操作',404);
+   }else if(path==='/api/admin/action'){this.core.action(input);await this.syncGlobalHistory(room)}else throw new UserError('不支援的操作',404);
    this.broadcast();if(path==='/api/like'&&input.hit===true&&['moles','fishing'].includes(input.gameStyle)&&input.gameStyle===this.core.state().style)this.broadcastEvent({type:'gameHit',text:String(input.text||''),style:input.gameStyle});return reply(json({ok:true,liked:this.core.liked(voter)}));
   }
   throw new UserError('找不到功能',404);
