@@ -206,3 +206,33 @@ test('history API exposes keyword search and safe category updates; host UI prov
  assert.ok(page.includes('id="historyKeyword"'));
  assert.ok(page.includes('id="historyCategoryFilter"'));
 });
+
+test('shared history library syncs immutable snapshots to Staging D1 and supports cross-room search and reuse',()=>{
+ const worker=readFileSync(new URL('./worker.mjs',import.meta.url),'utf8');
+ const app=readFileSync(new URL('../web/app.js',import.meta.url),'utf8');
+ assert.ok(worker.includes('CREATE TABLE IF NOT EXISTS global_topic_history'));
+ assert.ok(worker.includes('async syncGlobalHistory(room)'));
+ assert.ok(worker.includes('INSERT OR IGNORE INTO global_topic_history'));
+ assert.ok(worker.includes("if(path==='/api/admin/global-history'&&request.method==='GET')"));
+ assert.ok(worker.includes("this.core.importHistory({items:[copy]});this.core.action({action:'historyUse',id:localId})"));
+ assert.ok(worker.includes("sourceImmutable:true"));
+ assert.ok(worker.includes('this.env.ROOMS.idFromName(row.room_id)'));
+ assert.ok(app.includes("/api/admin/global-history?limit=20"));
+ assert.ok(app.includes("/api/admin/global-history/'+encodeURIComponent(item.id)+'/use"));
+ assert.ok(app.includes("/api/admin/global-history/'+encodeURIComponent(item.id)+'/access"));
+});
+test('sticker layout sizes characters by engagement, packs around canvas area, and preserves endorsement/feedback controls',()=>{
+ const app=readFileSync(new URL('../web/app.js',import.meta.url),'utf8');
+ const start=app.indexOf("if(state.style==='stickers'&&words.length)");
+ const end=app.indexOf("if((state.style==='moles'||state.style==='fishing')",start);
+ const layout=app.slice(start,end);
+ assert.ok(start>=0&&end>start);
+ assert.ok(layout.includes('Math.sqrt(Math.max(0,heat(word))/largest)'));
+ assert.ok(layout.includes('stickerFree'));
+ assert.ok(layout.includes('for(let t=0;t<1800;t++)'));
+ assert.ok(layout.includes('diameter'));
+ assert.ok(app.includes("const showSelectors=['.endorse-heading','.join-stats','.endorse-card>.field-hint','#endorseList','#endorseEmpty']"));
+ assert.ok(app.includes('renderEndorsements();'));
+ assert.ok(app.includes('openFeedbackComposer(word.text)'));
+ assert.ok(app.includes("if(style==='stickers')drawSticker"));
+});
