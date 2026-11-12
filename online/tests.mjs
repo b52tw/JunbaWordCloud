@@ -216,10 +216,10 @@ test('shared history library syncs immutable snapshots to Staging D1 and support
  assert.ok(worker.includes("if(path==='/api/admin/global-history'&&request.method==='GET')"));
  assert.ok(worker.includes("this.core.importHistory({items:[copy]});this.core.action({action:'historyUse',id:localId})"));
  assert.ok(worker.includes("sourceImmutable:true"));
- assert.ok(worker.includes('this.env.ROOMS.idFromName(row.room_id)'));
+ assert.ok(worker.includes("row.room_id!==room"));assert.ok(worker.includes('互動開放狀態請回到原活動主持台調整'));
  assert.ok(app.includes("/api/admin/global-history?limit=20"));
  assert.ok(app.includes("/api/admin/global-history/'+encodeURIComponent(item.id)+'/use"));
- assert.ok(app.includes("/api/admin/global-history/'+encodeURIComponent(item.id)+'/access"));
+ assert.ok(app.includes("/api/admin/global-history/'+encodeURIComponent(item.id)+'/access"));assert.ok(app.includes('item.roomId===cloudRoom'));assert.ok(app.includes('互動開放狀態請至原活動主持台管理'));
 });
 test('sticker layout sizes characters by engagement, packs around canvas area, and preserves endorsement/feedback controls',()=>{
  const app=readFileSync(new URL('../web/app.js',import.meta.url),'utf8');
