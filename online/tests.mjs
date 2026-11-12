@@ -204,7 +204,7 @@ test('history API exposes keyword search and safe category updates; host UI prov
  assert.ok(app.includes("historyEl('historyKeyword')"));
  assert.ok(app.includes("historyEl('historyCategoryFilter')"));
  assert.ok(page.includes('id="historyKeyword"'));
- assert.ok(page.includes('id="historyCategoryFilter"'));const compat=readFileSync(new URL('../web/compat.js',import.meta.url),'utf8');assert.ok(compat.includes('app.js?v=20261112-sticker-nickname-03'));assert.ok(page.includes('跨活動歷史題目管理'));assert.ok(page.includes('compat.js?v=20261112-sticker-nickname-03'));
+ assert.ok(page.includes('id="historyCategoryFilter"'));const compat=readFileSync(new URL('../web/compat.js',import.meta.url),'utf8');assert.ok(compat.includes('app.js?v=20261112-history-exit-04'));assert.ok(page.includes('跨活動歷史題目管理'));assert.ok(page.includes('compat.js?v=20261112-history-exit-04'));
 });
 
 test('shared history library syncs immutable snapshots to Staging D1 and supports cross-room search and reuse',()=>{
