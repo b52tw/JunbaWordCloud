@@ -271,7 +271,7 @@ test('participant my-history offers close and current-activity exit; host expose
  const page=readFileSync(new URL('../web/index.html',import.meta.url),'utf8');
  assert.ok(page.includes('id="myHistoryExit"'));
  assert.ok(page.includes('id="stopHistoryInteractions"'));
- assert.ok(app.includes('id=\'closeMyHistoryDetail\''));
+ assert.ok(app.includes('id="closeMyHistoryDetail"'));
  assert.ok(app.includes("window.addEventListener('junba-history-exit',exitToCurrentActivity)"));
  assert.ok(app.includes("window.dispatchEvent(new Event('junba-history-exit'))"));
  assert.ok(app.includes("API_ROOT+'/join?room='+encodeURIComponent(participantRoom)"));
