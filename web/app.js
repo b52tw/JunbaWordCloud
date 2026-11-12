@@ -268,7 +268,7 @@ function renderHistoryCards(items,cardsId,statusId,detailId,prevId,nextId,pageId
    const b=document.createElement('button');b.type='button';b.className='secondary';b.textContent='預覽／重播投影';b.onclick=()=>loadHistoryDetail(item.id,detailId,statusId);
    const oneExport=document.createElement('button');oneExport.type='button';oneExport.className='secondary';oneExport.textContent='下載這筆 JSON';oneExport.onclick=()=>exportOneHistory(item.id,'json');
    const access=document.createElement('button');access.type='button';access.className=mode==='open'?'secondary':'primary';access.textContent=mode==='open'?'雲端備存（停止互動、保留查看）':mode==='hidden'?'恢復參與者查看':'開放互動（允許投稿與讚同）';
-   access.onclick=async()=>{const next=mode==='open'?'view':mode==='hidden'?'view':'open';const prompt=next==='view'?'備存後參與者仍可查看這筆歷史成果，但不能再投稿或按讚。確定備存？':'開放後，參與者可以在「我的歷史互動」中再次投稿與按讚。確定開放？';if(!await confirmUI(prompt))return;access.disabled=true;try{await api('/api/admin/history/'+encodeURIComponent(item.id)+'/access',{method:'POST',body:{mode:next},admin:true});await loadHistoryPage(true,cardsId,statusId,detailId,prevId,nextId,pageId);historyMessage(statusId,next==='view'?'已雲端備存；參與者仍可查看。':'已開放歷史互動。')}catch(e){historyError('更新歷史主題權限失敗',e,statusId);access.disabled=false}};
+   access.onclick=async()=>{const next=mode==='open'?'view':mode==='hidden'?'view':'open';const prompt=next==='view'?'備存後參與者仍可查看這筆歷史成果，但不能再投稿或按讚。確定備存？':'開放後，參與者可以在「我的歷史互動」中再次投稿與按讚。確定開放？';if(!await confirmUI(prompt))return;access.disabled=true;try{await api('/api/admin/global-history/'+encodeURIComponent(item.id)+'/access',{method:'POST',body:{mode:next},admin:true});await loadHistoryPage(true,cardsId,statusId,detailId,prevId,nextId,pageId);historyMessage(statusId,next==='view'?'已雲端備存；參與者仍可查看。':'已開放歷史互動。')}catch(e){historyError('更新歷史主題權限失敗',e,statusId);access.disabled=false}};
    card.append(b,oneExport,access);
   }
   cards.append(card);
@@ -295,7 +295,7 @@ async function loadHistoryPage(reset=false,cardsId='hostHistoryCards',statusId='
   const from=historyEl('historyFrom')?.value||'',to=historyEl('historyTo')?.value||'',q=historyEl('historyKeyword')?.value.trim()||'',category=historyEl('historyCategoryFilter')?.value||'';const filter=(from?'&from='+encodeURIComponent(from):'')+(to?'&to='+encodeURIComponent(to):'')+(q?'&q='+encodeURIComponent(q):'')+(category?'&category='+encodeURIComponent(category):'')+(historyTrashMode?'&trash=1':'');const response=await api('/api/admin/global-history?limit=20&cursor='+encodeURIComponent(historyState.cursor)+filter,{admin:true});
   const page=await response.json();
   if(!page||!Array.isArray(page.items)||!Number.isFinite(page.total)||!Number.isFinite(page.limit)||(page.nextCursor!==null&&typeof page.nextCursor!=='string'))throw new Error('歷史列表回應格式不正確。');
-  if(page.total===0){try{const diagnostic=await(await api('/api/admin/history/diagnostics',{admin:true})).json();historyMessage(statusId,'歷史資料診斷：資料總數 '+diagnostic.total+' 筆；一般 '+diagnostic.visible+' 筆；隱藏 '+diagnostic.hidden+' 筆；已刪除 '+diagnostic.deleted+' 筆。'+(diagnostic.latestCreatedAt?'最近快照：'+diagnostic.latestCreatedAt:'尚無任何快照記錄')+'.')}catch(e){historyMessage(statusId,'歷史列表為 0 筆；診斷讀取失敗：'+e.message)}}
+  if(page.total===0){try{const diagnostic=await(await api('/api/admin/global-history?limit=1&cursor=0',{admin:true})).json();historyMessage(statusId,'跨活動歷史總庫目前共 '+(diagnostic.total||0)+' 筆；可以改用關鍵字、分類或日期縮小範圍。')}catch(e){historyMessage(statusId,'歷史列表為 0 筆；診斷讀取失敗：'+e.message)}}
   historyState.next=page.nextCursor;
   if(renderHistoryCards(page.items,cardsId,statusId,detailId,prevId,nextId,pageId))historyMessage(statusId,'跨活動歷史總庫：共 '+page.total+' 筆；每頁 '+page.limit+' 筆。');
  }catch(e){historyError('無法載入歷史列表',e,statusId)}finally{historyState.busy=false}
@@ -325,7 +325,7 @@ async function collectHistoryForExport(){
 }
 async function exportOneHistory(id,format){
  try{
-  const response=await api('/api/admin/history/'+encodeURIComponent(id),{admin:true});
+  const response=await api('/api/admin/global-history/'+encodeURIComponent(id),{admin:true});
   if(!response.ok)throw new Error('讀取歷史快照失敗（HTTP '+response.status+'）');
   const item=await response.json();
   if(!item||typeof item.id!=='string'||!Array.isArray(item.words))throw new Error('歷史快照內容格式不正確');
