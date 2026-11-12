@@ -130,7 +130,7 @@ function layoutWords(ctx,words,W,H,scale=1){
   function stickerFree(x,y,d){if(x<6||y<6||x+d>W-6||y+d>H-6)return false;const x1=Math.floor(x/grid),y1=Math.floor(y/grid),x2=Math.ceil((x+d)/grid),y2=Math.ceil((y+d)/grid);for(let yy=y1;yy<y2;yy++)for(let xx=x1;xx<x2;xx++)if(occupied[yy*gw+xx])return false;return true}
   function stickerMark(x,y,d){const x1=Math.floor(x/grid),y1=Math.floor(y/grid),x2=Math.ceil((x+d)/grid),y2=Math.ceil((y+d)/grid);for(let yy=y1;yy<y2;yy++)for(let xx=x1;xx<x2;xx++)occupied[yy*gw+xx]=1}
   sorted.forEach((word,index)=>{
-   const ratio=Math.sqrt(Math.max(0,heat(word))/largest),diameter=Math.max(48,Math.min(base*(.66+.62*ratio),Math.min(W,H)*.30));
+   const ratio=Math.sqrt(Math.max(0,heat(word))/largest),personality=.88+(hash(word.text)%25)/100,diameter=Math.max(48,Math.min(base*(.66+.62*ratio)*personality,Math.min(W,H)*.30));
    const font=fontFamily(word.text),size=Math.max(10,Math.min(25,diameter*(.20+.045*ratio)));
    ctx.font='700 '+size+'px '+font;const textWidth=ctx.measureText(word.text).width;const fitted=textWidth>diameter*1.42?Math.max(9,size*diameter*1.42/textWidth):size;
    const d=Math.max(diameter,Math.min(W,H)*.12),phase=(hash(word.text)%628)/100;let placed=null;
