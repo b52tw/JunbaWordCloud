@@ -2,6 +2,14 @@ name: Deploy JunbaWordCloud V2 Production
 
 on:
   workflow_dispatch:
+  push:
+    branches:
+      - release/v2-production
+    paths:
+      - "online/**"
+      - "web/**"
+      - "wrangler-v2.jsonc"
+      - ".github/workflows/deploy-v2-production.yml"
 
 jobs:
   deploy-v2-production:
@@ -13,7 +21,7 @@ jobs:
       - name: Checkout verified V2 release source
         uses: actions/checkout@v4
         with:
-          ref: fix/topic-archive-guardrails
+          ref: release/v2-production
 
       - name: Set up Node.js
         uses: actions/setup-node@v4
