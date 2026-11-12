@@ -447,7 +447,7 @@ if(mode==='host'){
 }else if(mode==='join'){
  const room=participantRoom;$('#joinCanvas').addEventListener('click',async event=>{
   if(!state)return;
-  const rect=event.currentTarget.getBoundingClientRect(),x=(event.clientX-rect.left)*(event.currentTarget.clientWidth/Math.max(1,rect.width)),y=(event.clientY-rect.top)*(event.currentTarget.clientHeight/Math.max(1,rect.height));
+  const canvas=event.currentTarget,rect=canvas.getBoundingClientRect(),x=(event.clientX-rect.left)*(canvas.clientWidth/Math.max(1,rect.width)),y=(event.clientY-rect.top)*(canvas.clientHeight/Math.max(1,rect.height));
   const target=[...gamePositions].reverse().find(p=>x>=p.left&&x<=p.left+p.w&&y>=p.top&&y<=p.top+p.h);
   if(!target)return;
   const gameMode=['moles','fishing'].includes(state.style);
@@ -462,9 +462,9 @@ if(mode==='host'){
     toast(state.style==='moles'?'敲中「'+target.text+'」！':'釣到「'+target.text+'」！');
    }else{
     toast('已直接讚同「'+target.text+'」！');
-    const cloud=event.currentTarget.parentElement;
+    const cloud=canvas.parentElement;
     const marker=document.createElement('span');marker.className='direct-like-feedback';marker.textContent='👍';
-    marker.style.left=(x/rect.width*100)+'%';marker.style.top=(y/rect.height*100)+'%';cloud.append(marker);
+    marker.style.left=(x/Math.max(1,canvas.clientWidth)*100)+'%';marker.style.top=(y/Math.max(1,canvas.clientHeight)*100)+'%';cloud.append(marker);
     setTimeout(()=>marker.remove(),950);
    }
    await refresh();
