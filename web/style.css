@@ -238,3 +238,19 @@ body.immersive-active{overflow:hidden!important}
  .immersive-orientation-card button{min-height:42px;margin:3px 0}
 }
 @media(prefers-reduced-motion:reduce){.immersive-entry{transition:none}}
+
+
+/* Direct touch-to-endorse feedback on participant cloud, including immersive view. */
+.participant-cloud canvas{touch-action:manipulation;cursor:pointer}
+.direct-like-feedback{
+ position:absolute;z-index:8;pointer-events:none;transform:translate(-50%,-50%);
+ font-size:clamp(25px,5vw,42px);line-height:1;
+ filter:drop-shadow(0 3px 5px #0008);
+ animation:direct-like-float .9s cubic-bezier(.2,.75,.3,1) forwards;
+}
+@keyframes direct-like-float{
+ 0%{opacity:0;transform:translate(-50%,-20%) scale(.45)}
+ 22%{opacity:1;transform:translate(-50%,-60%) scale(1.2)}
+ 100%{opacity:0;transform:translate(-50%,-155%) scale(.85)}
+}
+@media(prefers-reduced-motion:reduce){.direct-like-feedback{animation:none;opacity:0}}
