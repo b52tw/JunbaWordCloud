@@ -169,3 +169,40 @@ test('MP3 audio assets are declared as required staging assets',()=>{const app=r
 
 
 test('opening history archives current round once and creates a new snapshot only when its results change',()=>{const c=room();c.submit({text:'第一次成果',round:c.meta().round});const first=c.action({action:'archive'});assert.equal(first.ok,true);assert.equal(first.alreadyArchived,false);const again=c.action({action:'archive'});assert.equal(again.alreadyArchived,true);assert.equal(again.topic.id,first.topic.id);c.submit({text:'第二次成果',round:c.meta().round});const updated=c.action({action:'archive'});assert.equal(updated.updatedArchive,true);assert.notEqual(updated.topic.id,first.topic.id);assert.deepEqual(updated.topic.words.map(w=>w.text).sort(),['第一次成果','第二次成果']);assert.equal(c.history({limit:10}).total,2);assert.equal(c.state().words.length,2)});
+
+test('history keyword search matches question, title and saved word text; category filter is independent of snapshot data',()=>{
+ const c=room();
+ c.submit({text:'面試履歷優化',round:c.meta().round});
+ const one=c.action({action:'snapshot',title:'求職工作坊紀錄'}).topic;
+ c.setHistoryCategory(one.id,'求職實戰');
+ assert.equal(c.history({q:'面試履歷'}).total,1);
+ assert.equal(c.history({q:'求職工作坊'}).total,1);
+ assert.equal(c.history({category:'求職實戰'}).items[0].id,one.id);
+ assert.equal(c.historyDetail(one.id).category,'求職實戰');
+ assert.throws(()=>c.setHistoryCategory(one.id,'不支援分類'),/不支援的歷史分類/);
+ assert.equal(c.historyDetail(one.id).words[0].text,'面試履歷優化');
+});
+test('history category metadata survives JSON import and legacy records default to unclassified',()=>{
+ const c=room();
+ const result=c.importHistory({items:[{question:'AI 工具如何協助工作？',createdAt:'2026-11-12T00:00:00.000Z',category:'AI與數位',words:[{text:'提示工程',count:2,likes:1}]}]});
+ assert.equal(result.inserted,1);
+ const imported=c.history({category:'AI與數位'}).items[0];
+ assert.ok(imported);
+ assert.equal(c.historyDetail(imported.id).category,'AI與數位');
+ c.submit({text:'未分類詞語',round:c.meta().round});
+ const legacy=c.action({action:'snapshot'}).topic;
+ assert.equal(c.history({category:'未分類'}).items[0].id,legacy.id);
+});
+test('history API exposes keyword search and safe category updates; host UI provides category management controls',()=>{
+ const worker=readFileSync(new URL('./worker.mjs',import.meta.url),'utf8');
+ const app=readFileSync(new URL('../web/app.js',import.meta.url),'utf8');
+ const page=readFileSync(new URL('../web/index.html',import.meta.url),'utf8');
+ assert.ok(worker.includes("q:url.searchParams.get('q')||''"));
+ assert.ok(worker.includes("category:url.searchParams.get('category')||''"));
+ assert.ok(worker.includes("this.core.setHistoryCategory(historyCategoryMatch[1],input.category)"));
+ assert.ok(app.includes("/category',{method:'POST',body:{category:categorySelect.value}"));
+ assert.ok(app.includes("historyEl('historyKeyword')"));
+ assert.ok(app.includes("historyEl('historyCategoryFilter')"));
+ assert.ok(page.includes('id="historyKeyword"'));
+ assert.ok(page.includes('id="historyCategoryFilter"'));
+});
