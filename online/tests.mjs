@@ -294,3 +294,21 @@ test('immersive browse controls are scoped to host and participant views, with p
  assert.match(css,/safe-area-inset-top/);
  assert.match(html,/<main id="screen"/);
 });
+
+
+test('immersive controls have distinct pure-cloud and useful simple-control actions',()=>{
+ const app=readFileSync(new URL('../web/app.js',import.meta.url),'utf8');
+ const css=readFileSync(new URL('../web/style.css',import.meta.url),'utf8');
+ assert.match(app,/純文字雲/);
+ assert.match(app,/簡易控制/);
+ assert.match(app,/暫停動態/);
+ assert.match(app,/隱藏小名/);
+ assert.match(app,/隱藏讚數/);
+ assert.match(app,/motionBtn\.addEventListener\('click'/);
+ assert.match(app,/namesBtn\.addEventListener\('click'/);
+ assert.match(app,/likesBtn\.addEventListener\('click'/);
+ assert.match(app,/zoom=Math\.max\(\.65/);
+ assert.match(css,/immersive-cloud-drift/);
+ assert.match(css,/immersive-names-on/);
+ assert.match(css,/immersive-likes-on/);
+});
