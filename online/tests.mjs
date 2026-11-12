@@ -277,3 +277,20 @@ test('participant my-history offers close and current-activity exit; host expose
  assert.ok(app.includes("API_ROOT+'/join?room='+encodeURIComponent(participantRoom)"));
  assert.ok(app.includes('/api/admin/history/stop-interactions'));
 });
+
+
+test('immersive browse controls are scoped to host and participant views, with projection page excluded',()=>{
+ const app=readFileSync(new URL('../web/app.js',import.meta.url),'utf8');
+ const html=readFileSync(new URL('../web/index.html',import.meta.url),'utf8');
+ const css=readFileSync(new URL('../web/style.css',import.meta.url),'utf8');
+ assert.match(app,/\['host','join'\]\.includes\(mode\)/);
+ assert.match(app,/\.cloud-stage/);
+ assert.match(app,/\.participant-cloud/);
+ assert.match(app,/requestFullscreen/);
+ assert.match(app,/setMode\(false\)/);
+ assert.match(app,/setMode\(true\)/);
+ assert.match(app,/immersive-exit/);
+ assert.match(css,/\.immersive-overlay/);
+ assert.match(css,/safe-area-inset-top/);
+ assert.match(html,/<main id="screen"/);
+});

@@ -470,3 +470,66 @@ if(typeof ResizeObserver!=="undefined"){const obs=new ResizeObserver(()=>{clearT
 if(mode==="join")$("#phoneCloud").ontoggle=()=>setTimeout(paint,0);
 
 let loadedAppearanceFont='';function ensureCloudFont(){if(!state||!document.fonts||!document.fonts.load)return;const font=state.font||'round';if(loadedAppearanceFont===font)return;loadedAppearanceFont=font;const names=font==='mixed'?['JunbaRound','JunbaSerif']:font==='round'?['JunbaRound']:font==='serif'?['JunbaSerif']:[];Promise.all(names.map(n=>document.fonts.load('700 24px '+n))).then(()=>paint()).catch(()=>{});}if(document.fonts)ensureCloudFont();
+
+
+/* Immersive word-cloud view: isolated UI layer for host and participant pages. */
+(()=>{
+ if(!['host','join'].includes(mode))return;
+ const host=mode==='host';
+ const cloud=document.querySelector(host?'.cloud-stage':'.participant-cloud');
+ if(!cloud)return;
+ const entry=document.createElement('button');
+ entry.type='button';entry.className='secondary immersive-entry';
+ entry.textContent='⛶ 沉浸式瀏覽';
+ if(host){
+  const actions=document.querySelector('.preview-toolbar .toolbar-actions');
+  if(actions)actions.append(entry);
+ }else{
+  const summary=document.querySelector('#phoneCloud summary');
+  if(summary)summary.insertAdjacentElement('afterend',entry);
+ }
+ const overlay=document.createElement('section');
+ overlay.className='immersive-overlay';overlay.hidden=true;
+ overlay.setAttribute('aria-label','沉浸式文字雲瀏覽');
+ const content=document.createElement('div');content.className='immersive-cloud-content';
+ const controls=document.createElement('div');controls.className='immersive-controls';
+ const title=document.createElement('strong');title.className='immersive-title';title.textContent='峻爸文字雲 · 即時瀏覽';
+ const modeA=document.createElement('button');modeA.type='button';modeA.textContent='純文字雲';
+ const modeB=document.createElement('button');modeB.type='button';modeB.textContent='簡易控制';
+ const zoomOut=document.createElement('button');zoomOut.type='button';zoomOut.textContent='－';
+ const zoomLabel=document.createElement('span');zoomLabel.className='immersive-zoom-label';
+ const zoomIn=document.createElement('button');zoomIn.type='button';zoomIn.textContent='＋';
+ const exit=document.createElement('button');exit.type='button';exit.className='immersive-exit';exit.textContent='退出瀏覽 ✕';
+ const reveal=document.createElement('button');reveal.type='button';reveal.className='immersive-reveal';reveal.textContent='顯示控制';
+ controls.append(title,modeA,modeB,zoomOut,zoomLabel,zoomIn,exit);
+ overlay.append(content,controls,reveal);document.body.append(overlay);
+ let placeholder=null,zoom=1,compact=false,nativeFullscreen=false;
+ const updateZoom=()=>{cloud.style.setProperty('--immersive-zoom',String(zoom));zoomLabel.textContent=Math.round(zoom*100)+'%';};
+ const setMode=showControls=>{compact=showControls;overlay.classList.toggle('show-controls',showControls);overlay.classList.toggle('pure-cloud',!showControls);};
+ const open=async()=>{
+  if(!overlay.hidden)return;
+  placeholder=document.createComment('immersive-cloud-origin');cloud.parentNode.insertBefore(placeholder,cloud);
+  content.append(cloud);overlay.hidden=false;document.body.classList.add('immersive-active');
+  zoom=1;updateZoom();setMode(false);
+  if(overlay.requestFullscreen){try{await overlay.requestFullscreen();nativeFullscreen=true}catch{nativeFullscreen=false}}
+  setTimeout(()=>{if(typeof paint==='function')paint()},80);
+ };
+ const close=async()=>{
+  if(overlay.hidden)return;
+  if(placeholder&&placeholder.parentNode){placeholder.parentNode.insertBefore(cloud,placeholder);placeholder.remove();}
+  placeholder=null;overlay.hidden=true;document.body.classList.remove('immersive-active');
+  if(nativeFullscreen&&document.fullscreenElement===overlay){try{await document.exitFullscreen()}catch{}}
+  nativeFullscreen=false;cloud.style.removeProperty('--immersive-zoom');
+  setTimeout(()=>{if(typeof paint==='function')paint()},80);
+ };
+ entry.addEventListener('click',open);
+ modeA.addEventListener('click',()=>setMode(false));
+ modeB.addEventListener('click',()=>setMode(true));
+ reveal.addEventListener('click',()=>setMode(true));
+ zoomOut.addEventListener('click',()=>{zoom=Math.max(.75,Math.round((zoom-.1)*10)/10);updateZoom();});
+ zoomIn.addEventListener('click',()=>{zoom=Math.min(1.6,Math.round((zoom+.1)*10)/10);updateZoom();});
+ exit.addEventListener('click',close);
+ document.addEventListener('keydown',event=>{if(event.key==='Escape'&&!overlay.hidden&&!nativeFullscreen)close();});
+ document.addEventListener('fullscreenchange',()=>{if(nativeFullscreen&&!document.fullscreenElement&&!overlay.hidden){nativeFullscreen=false;close();}});
+ window.addEventListener('resize',()=>{if(!overlay.hidden&&typeof paint==='function')paint()});
+})();
