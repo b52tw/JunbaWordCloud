@@ -259,17 +259,22 @@ function renderHistoryCards(items,cardsId,statusId,detailId,prevId,nextId,pageId
   }
   if(item.deletedAt){
    const state=document.createElement('p');state.textContent='已隱藏：'+new Date(item.deletedAt).toLocaleString('zh-TW');card.append(state);
-   const restore=document.createElement('button');restore.type='button';restore.className='primary';restore.textContent='恢復雲端備存（可查看）';
-   restore.onclick=async()=>{restore.disabled=true;try{await api('/api/admin/global-history/'+encodeURIComponent(item.id)+'/restore',{method:'POST',body:{},admin:true});await loadHistoryPage(true,cardsId,statusId,detailId,prevId,nextId,pageId);historyMessage(statusId,'已恢復為雲端備存，參與者可以查看。')}catch(e){historyError('還原歷史紀錄失敗',e,statusId);restore.disabled=false}};
-   card.append(restore);
+   if(item.roomId===cloudRoom||item.libraryHiddenAt||item.roomId==='imported'){
+    const restore=document.createElement('button');restore.type='button';restore.className='primary';restore.textContent='恢復雲端備存（可查看）';
+    restore.onclick=async()=>{restore.disabled=true;try{await api('/api/admin/global-history/'+encodeURIComponent(item.id)+'/restore',{method:'POST',body:{},admin:true});await loadHistoryPage(true,cardsId,statusId,detailId,prevId,nextId,pageId);historyMessage(statusId,'已恢復雲端備存。')}catch(e){historyError('還原歷史紀錄失敗',e,statusId);restore.disabled=false}};
+    card.append(restore);
+   }else{const note=document.createElement('p');note.textContent='請回原活動主持台還原此紀錄';card.append(note)}
   }else{
    const mode=item.accessMode|| (item.interactiveOpen?'open':'view');
    const state=document.createElement('p');state.className='history-access-state';state.textContent=mode==='open'?'狀態：開放互動':mode==='hidden'?'狀態：隱藏（參與者看不到）':'狀態：雲端備存（參與者可查看）';card.append(state);
    const b=document.createElement('button');b.type='button';b.className='secondary';b.textContent='預覽／重播投影';b.onclick=()=>loadHistoryDetail(item.id,detailId,statusId);
    const oneExport=document.createElement('button');oneExport.type='button';oneExport.className='secondary';oneExport.textContent='下載這筆 JSON';oneExport.onclick=()=>exportOneHistory(item.id,'json');
-   const access=document.createElement('button');access.type='button';access.className=mode==='open'?'secondary':'primary';access.textContent=mode==='open'?'雲端備存（停止互動、保留查看）':mode==='hidden'?'恢復參與者查看':'開放互動（允許投稿與讚同）';
-   access.onclick=async()=>{const next=mode==='open'?'view':mode==='hidden'?'view':'open';const prompt=next==='view'?'備存後參與者仍可查看這筆歷史成果，但不能再投稿或按讚。確定備存？':'開放後，參與者可以在「我的歷史互動」中再次投稿與按讚。確定開放？';if(!await confirmUI(prompt))return;access.disabled=true;try{await api('/api/admin/global-history/'+encodeURIComponent(item.id)+'/access',{method:'POST',body:{mode:next},admin:true});await loadHistoryPage(true,cardsId,statusId,detailId,prevId,nextId,pageId);historyMessage(statusId,next==='view'?'已雲端備存；參與者仍可查看。':'已開放歷史互動。')}catch(e){historyError('更新歷史主題權限失敗',e,statusId);access.disabled=false}};
-   card.append(b,oneExport,access);
+   card.append(b,oneExport);
+   if(item.roomId===cloudRoom||item.roomId==='imported'){
+    const access=document.createElement('button');access.type='button';access.className=mode==='open'?'secondary':'primary';access.textContent=mode==='open'?'雲端備存（停止互動、保留查看）':mode==='hidden'?'恢復參與者查看':'開放互動（允許投稿與讚同）';
+    access.onclick=async()=>{const next=mode==='open'?'view':mode==='hidden'?'view':'open';const prompt=next==='view'?'備存後參與者仍可查看這筆歷史成果，但不能再投稿或按讚。確定備存？':'開放後，參與者可以在「我的歷史互動」中再次投稿與按讚。確定開放？';if(!await confirmUI(prompt))return;access.disabled=true;try{await api('/api/admin/global-history/'+encodeURIComponent(item.id)+'/access',{method:'POST',body:{mode:next},admin:true});await loadHistoryPage(true,cardsId,statusId,detailId,prevId,nextId,pageId);historyMessage(statusId,next==='view'?'已雲端備存；參與者仍可查看。':'已開放歷史互動。')}catch(e){historyError('更新歷史主題權限失敗',e,statusId);access.disabled=false}};
+    card.append(access);
+   }else{const note=document.createElement('p');note.textContent='互動開放狀態請至原活動主持台管理';card.append(note)}
   }
   cards.append(card);
  });
