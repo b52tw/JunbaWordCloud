@@ -149,6 +149,20 @@ export class WordCloudRoom extends DurableObject{
    }
    return reply(json({ok:true,inserted,skipped,total:payload.length}));
   }
+  const globalAccessMatch=path.match(/^\/api\/admin\/global-history\/([a-f0-9-]{36})\/access$/);
+  if(globalAccessMatch&&request.method==='POST'){
+   const input=await body(request),owner=await this.ensureGlobalHistoryStore(),row=await this.env.BANK.prepare('SELECT room_id FROM global_topic_history WHERE owner_id=? AND id=?').bind(owner,globalAccessMatch[1]).first();
+   if(!row)throw new UserError('找不到這筆歷史主題',404);
+   if(row.room_id!=='imported'){
+    const stub=this.env.ROOMS.get(this.env.ROOMS.idFromName(row.room_id));
+    const forwarded=await stub.fetch(new Request('https://internal/r/'+row.room_id+'/api/admin/history/'+globalAccessMatch[1]+'/access',{method:'POST',headers:{Authorization:request.headers.get('Authorization')||'', 'Content-Type':'application/json'},body:JSON.stringify(input)}));
+    const result=await forwarded.json();if(!forwarded.ok)throw new UserError(result.error||'更新歷史權限失敗',forwarded.status);
+    return reply(json(result));
+   }
+   const mode=['view','open','hidden'].includes(input.mode)?input.mode:'view';
+   await this.env.BANK.prepare('UPDATE global_topic_history SET access_mode=? WHERE owner_id=? AND id=?').bind(mode,owner,globalAccessMatch[1]).run();
+   return reply(json({ok:true,id:globalAccessMatch[1],mode}));
+  }
   const globalHistoryMatch=path.match(/^\/api\/admin\/global-history\/([a-f0-9-]{36})$/);
   if(globalHistoryMatch&&request.method==='GET'){
    const owner=await this.ensureGlobalHistoryStore(),row=await this.env.BANK.prepare('SELECT id,room_id,title,question,created_at,category,access_mode,deleted_at,library_hidden_at,data FROM global_topic_history WHERE owner_id=? AND id=?').bind(owner,globalHistoryMatch[1]).first();
@@ -162,8 +176,16 @@ export class WordCloudRoom extends DurableObject{
   }
   const globalRestoreMatch=path.match(/^\/api\/admin\/global-history\/([a-f0-9-]{36})\/restore$/);
   if(globalRestoreMatch&&request.method==='POST'){
-   const owner=await this.ensureGlobalHistoryStore(),result=await this.env.BANK.prepare("UPDATE global_topic_history SET library_hidden_at=NULL,access_mode=CASE WHEN deleted_at IS NULL THEN 'view' ELSE access_mode END WHERE owner_id=? AND id=?").bind(owner,globalRestoreMatch[1]).run();
-   if(!result.meta?.changes)throw new UserError('找不到這筆歷史主題',404);return reply(json({id:globalRestoreMatch[1],restored:true}));
+   const owner=await this.ensureGlobalHistoryStore(),row=await this.env.BANK.prepare('SELECT room_id FROM global_topic_history WHERE owner_id=? AND id=?').bind(owner,globalRestoreMatch[1]).first();
+   if(!row)throw new UserError('找不到這筆歷史主題',404);
+   if(row.room_id!=='imported'){
+    const stub=this.env.ROOMS.get(this.env.ROOMS.idFromName(row.room_id));
+    const forwarded=await stub.fetch(new Request('https://internal/r/'+row.room_id+'/api/admin/history/'+globalRestoreMatch[1]+'/restore',{method:'POST',headers:{Authorization:request.headers.get('Authorization')||'', 'Content-Type':'application/json'},body:'{}'}));
+    const result=await forwarded.json();if(!forwarded.ok)throw new UserError(result.error||'恢復歷史紀錄失敗',forwarded.status);
+    return reply(json(result));
+   }
+   await this.env.BANK.prepare("UPDATE global_topic_history SET library_hidden_at=NULL,access_mode='view' WHERE owner_id=? AND id=?").bind(owner,globalRestoreMatch[1]).run();
+   return reply(json({id:globalRestoreMatch[1],restored:true}));
   }
   const globalUseMatch=path.match(/^\/api\/admin\/global-history\/([a-f0-9-]{36})\/use$/);
   if(globalUseMatch&&request.method==='POST'){
@@ -182,18 +204,18 @@ export class WordCloudRoom extends DurableObject{
   if(path==='/api/admin/history'&&request.method==='GET')return reply(json(this.core.history({limit:url.searchParams.get('limit'),cursor:url.searchParams.get('cursor')||'0',from:url.searchParams.get('from')||'',to:url.searchParams.get('to')||'',q:url.searchParams.get('q')||'',category:url.searchParams.get('category')||'',includeDeleted:url.searchParams.get('trash')==='1'})));
   if(path==='/api/admin/history/import'&&request.method==='POST'){const input=await body(request),result=this.core.importHistory(input);await this.syncGlobalHistory(room);return reply(json(result))}
   const historyAccessMatch=path.match(/^\/api\/admin\/history\/([a-f0-9-]{36})\/access$/);
-  if(historyAccessMatch&&request.method==='POST'){const input=await body(request);return reply(json({ok:true,...this.core.setHistoryAccess(historyAccessMatch[1],input.mode)}))}
+  if(historyAccessMatch&&request.method==='POST'){const input=await body(request),result=this.core.setHistoryAccess(historyAccessMatch[1],input.mode);await this.syncGlobalHistory(room);return reply(json({ok:true,...result}))}
   const historyOpenMatch=path.match(/^\/api\/admin\/history\/([a-f0-9-]{36})\/open$/);
-  if(historyOpenMatch&&request.method==='POST'){const input=await body(request);return reply(json({ok:true,...this.core.setHistoryOpen(historyOpenMatch[1],!!input.open)}))}
+  if(historyOpenMatch&&request.method==='POST'){const input=await body(request),result=this.core.setHistoryOpen(historyOpenMatch[1],!!input.open);await this.syncGlobalHistory(room);return reply(json({ok:true,...result}))}
   const historyRenameMatch=path.match(/^\/api\/admin\/history\/([a-f0-9-]{36})\/rename$/);
   if(historyRenameMatch&&request.method==='POST'){const input=await body(request);return reply(json(this.core.renameHistory(historyRenameMatch[1],input.title)))}
   const historyCategoryMatch=path.match(/^\/api\/admin\/history\/([a-f0-9-]{36})\/category$/);
   if(historyCategoryMatch&&request.method==='POST'){const input=await body(request),result=this.core.setHistoryCategory(historyCategoryMatch[1],input.category);await this.syncGlobalHistory(room);const owner=await this.ensureGlobalHistoryStore();await this.env.BANK.prepare('UPDATE global_topic_history SET category=? WHERE owner_id=? AND id=?').bind(input.category,owner,historyCategoryMatch[1]).run();return reply(json(result))}
   const historyRestoreMatch=path.match(/^\/api\/admin\/history\/([a-f0-9-]{36})\/restore$/);
-  if(historyRestoreMatch&&request.method==='POST')return reply(json(this.core.restoreHistory(historyRestoreMatch[1])));
+  if(historyRestoreMatch&&request.method==='POST'){const result=this.core.restoreHistory(historyRestoreMatch[1]);await this.syncGlobalHistory(room);return reply(json(result))}
   const historyMatch=path.match(/^\/api\/admin\/history\/([a-f0-9-]{36})$/);
   if(historyMatch&&request.method==='GET')return reply(json(this.core.historyDetail(historyMatch[1])));
-  if(historyMatch&&request.method==='DELETE')return reply(json(this.core.deleteHistory(historyMatch[1])));
+  if(historyMatch&&request.method==='DELETE'){const result=this.core.deleteHistory(historyMatch[1]);await this.syncGlobalHistory(room);return reply(json(result))}
   if(path==='/api/admin/history-settings'&&request.method==='POST'){const input=await body(request);return reply(json(this.core.setParticipantHistoryEnabled(!!input.enabled)))}
 
   if(path==='/api/admin/host-qr'&&request.method==='GET')return reply(qrResponse((shortHost||url.origin+'/r/'+room+'/host')+'#key='+(request.headers.get('Authorization')||'').replace(/^Bearer /,'')));
