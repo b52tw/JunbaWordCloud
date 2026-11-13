@@ -44,6 +44,14 @@ jobs:
         run: |
           node -e "const fs=require('fs');const c=JSON.parse(fs.readFileSync('wrangler-v2.jsonc','utf8'));if(c.name!=='junba-wordcloud-v2')throw Error('wrong worker name');if(c.d1_databases?.[0]?.database_id!=='f227611e-f095-4a1d-86cb-1c0bd8e7313a')throw Error('wrong V2 D1 database');if(c.durable_objects?.bindings?.[0]?.class_name!=='WordCloudRoom')throw Error('missing V2 Durable Object binding');console.log('V2 production resources are isolated')"
 
+      - name: Provision V2 activity management code from protected staging secret
+        env:
+          ACTIVITY_CODE: ${{ secrets.STAGING_ACTIVITY_CODE }}
+        run: |
+          test -n "$ACTIVITY_CODE" || (echo "Missing GitHub environment secret STAGING_ACTIVITY_CODE" && exit 1)
+          printf '%s' "$ACTIVITY_CODE" | grep -Eq '^[0-9]{4}$' || (echo "STAGING_ACTIVITY_CODE must be exactly 4 digits" && exit 1)
+          printf '%s' "$ACTIVITY_CODE" | npx wrangler secret put ACTIVITY_CODE --name junba-wordcloud-v2
+
       - name: Deploy separate V2 production Worker
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
