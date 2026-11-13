@@ -90,7 +90,7 @@ function render(){
   const old=$('#joinQuestion').textContent;$('#joinQuestion').textContent=state.question;
   if(displayedRound&&displayedRound!==state.round){$('#submitStatus').textContent=old===state.question?'主持人已清空重來，現在可以重新投稿。':'題目已更新，請確認後再送出。';$('#submitStatus').className='submit-status';}
   displayedRound=state.round;
-  $('#joinResponses').textContent=state.responses;$('#joinLikes').textContent=state.likesTotal||0;const stickerMode=state.style==='stickers';const endorseCard=$('.endorse-card');if(endorseCard){endorseCard.classList.toggle('sticker-mode-active',stickerMode);const showSelectors=['.endorse-heading','.join-stats','.endorse-card>.field-hint','#endorseList','#endorseEmpty'];showSelectors.forEach(selector=>{const el=endorseCard.querySelector(selector);if(el)el.hidden=false})}if($('#endorseTitle')){$('#endorseTitle').textContent=state.style==='moles'?'打地鼠！敲中喜歡的詞語':state.style==='fishing'?'釣魚池挑戰':'也來讚同好想法';$('#endorseHelp').textContent=state.style==='moles'?'點選「敲一下」，每次敲中都會累計分數。':state.style==='fishing'?'魚兒浮上水面時，點擊挑戰目標。':'點一下讚同，讓有共鳴的詞語長大。';}$('.participant-cloud').dataset.theme=state.theme;$('#joinCloudEmpty').hidden=state.words.length>0;const sig=JSON.stringify([state.words,state.theme,state.font,state.style,state.motion]);if(sig!==lastPaint){lastPaint=sig;paint()}renderEndorsements();
+  $('#joinResponses').textContent=state.responses;$('#joinLikes').textContent=state.likesTotal||0;const stickerMode=state.style==='stickers';const endorseCard=$('.endorse-card');if(endorseCard){endorseCard.classList.toggle('sticker-mode-active',stickerMode);const showSelectors=['.endorse-heading','.join-stats','.endorse-card>.field-hint','#endorseList','#endorseEmpty'];showSelectors.forEach(selector=>{const el=endorseCard.querySelector(selector);if(el)el.hidden=false})}if($('#endorseTitle')){$('#endorseTitle').textContent=state.style==='moles'?'打地鼠！敲中喜歡的詞語':state.style==='fishing'?'釣魚池挑戰':'也來讚同好想法';$('#endorseHelp').textContent=state.style==='moles'?'點選「敲一下」，每次敲中都會累計分數。':state.style==='fishing'?'魚兒浮上水面時，點擊挑戰目標。':'點一下讚同，讓有共鳴的詞語長大。';}$('.participant-cloud').dataset.theme=state.theme;$('#joinCloudEmpty').hidden=state.words.length>0;const sig=JSON.stringify([state.question,state.words,state.theme,state.font,state.style,state.motion]);if(sig!==lastPaint){lastPaint=sig;paint()}renderEndorsements();
   updateSubmit();return;
  }
  const panel=mode==='host'?$('.cloud-panel'):$('#screen');panel.dataset.theme=state.theme;
@@ -104,7 +104,7 @@ function render(){
  }else{
   $('#screenQuestion').textContent=state.question;$('#screenResponses').textContent=state.responses;$('#screenLikes').textContent=state.likesTotal||0;$('#screenStatus').textContent=state.open?'● 開放投稿中':'Ⅱ 暫停收件';
  }
- const signature=JSON.stringify([state.words,state.theme,state.font,state.style,state.motion]);if(signature!==lastPaint){lastPaint=signature;paint()}
+ const signature=JSON.stringify([state.question,state.words,state.theme,state.font,state.style,state.motion]);if(signature!==lastPaint){lastPaint=signature;paint()}
  document.querySelectorAll('.empty-cloud').forEach(el=>el.hidden=state.words.length>0);
  if(mode==='screen')loadJoin();
 }
@@ -221,13 +221,13 @@ function drawStyleBackdrop(ctx,W,H,style,theme,time=0){
 }
 const moleHitTimes=new Map();let moleLastLikes=new Map(),moleFrame=0;
 function paint(){
- if(!state||mode==='history'||mode==='my-history')return;const canvas=mode==='host'?$('#hostCanvas'):mode==='screen'?$('#screenCanvas'):$('#joinCanvas');const box=canvas.getBoundingClientRect();if(box.width<10||box.height<10)return;
+ if(!state||mode==='history'||mode==='my-history')return;const topicText=document.querySelector('.immersive-topic-text');if(topicText)topicText.textContent=state.question||'尚未設定活動主題';const canvas=mode==='host'?$('#hostCanvas'):mode==='screen'?$('#screenCanvas'):$('#joinCanvas');const box=canvas.getBoundingClientRect();if(box.width<10||box.height<10)return;
  const W=box.width,H=box.height,dpr=Math.min(2,window.devicePixelRatio||1),style=state.style||'clouds',clouds=style==='clouds',motion=state.motion||'gentle';canvas.classList.remove('visual-motion-wave','visual-motion-pulse','visual-motion-lively');if(['wave','pulse','lively'].includes(motion))canvas.classList.add('visual-motion-'+motion);const speed=state.motionSpeed||'normal',amp=state.motionAmplitude||'medium',base=motion==='wave'?5:motion==='pulse'?3.8:motion==='lively'?1.8:0,duration=base*(speed==='slow'?1.7:speed==='fast'?.58:1);canvas.style.animationDuration=base?duration+'s':'';canvas.parentElement.dataset.depth=amp;canvas.width=Math.round(W*dpr);canvas.height=Math.round(H*dpr);const ctx=canvas.getContext('2d');ctx.scale(dpr,dpr);ctx.clearRect(0,0,W,H);drawStyleBackdrop(ctx,W,H,style,state.theme,Date.now()/1000);
  const words=state.words.slice(0,motion==='eco'?60:200);let positions=layoutWords(ctx,words,W,H);if(positions.length<words.length*.9){const small=layoutWords(ctx,words,W,H,.75);if(small.length>positions.length)positions=small;}if((style==='moles'||style==='fishing')&&positions.length>1){const slots=positions.map(p=>({...p})),bucket=Math.floor(Date.now()/1800),ordered=words.slice(0,positions.length).map(w=>({w,k:hash(w.text+'|'+bucket)})).sort((a,b)=>a.k-b.k);positions=slots.map((slot,i)=>{const w=ordered[i].w;return {...slot,text:w.text,count:w.count,likes:w.likes||0,participants:w.participants||[],score:heat(w),color:palette[state.theme][hash(w.text)%7],font:fontFamily(w.text),lines:[w.text]}})}if(style==='fishing'&&words.length){const count=Math.min(words.length,18),unit=Math.min(W,H),tile=Math.max(68,Math.min(132,unit*(count<=8?.19:.155))),items=words.slice(0,count).map(w=>w).sort((a,b)=>hash(a.text)-hash(b.text));positions=items.map((w,i)=>{const angle=i*2.399963+((hash(w.text)%31)-15)*.012,spread=Math.sqrt((i+.5)/Math.max(1,count)),x=W*.5+Math.cos(angle)*W*.405*spread,y=H*.5+Math.sin(angle)*H*.365*spread,ww=Math.min(tile,W*.19),hh=Math.min(tile,H*.27),size=Math.max(12,Math.min(24,Math.min(ww,hh)*.17)),sizeScale=.82+Math.min(.62,Math.sqrt(heat(w))*.16);return {text:w.text,count:w.count,likes:w.likes||0,participants:w.participants||[],score:heat(w),sizeScale,color:palette[state.theme][hash(w.text)%7],font:fontFamily(w.text),size,lines:[w.text],left:x-ww/2,top:y-hh/2,w:ww,h:hh,x,y:y+size*.2}})}else if(style==='moles'&&positions.length>1){const slots=positions.map(p=>({...p})),bucket=Math.floor(Date.now()/1800),ordered=words.slice(0,positions.length).map(w=>({w,k:hash(w.text+'|'+bucket)})).sort((a,b)=>a.k-b.k);positions=slots.map((slot,i)=>{const w=ordered[i].w;return {...slot,text:w.text,count:w.count,likes:w.likes||0,participants:w.participants||[],score:heat(w),color:palette[state.theme][hash(w.text)%7],font:fontFamily(w.text),size:Math.max(10,Math.min(19,Math.min(slot.w,slot.h)*.19*(.72+.28*Math.sqrt(heat(w)/Math.max(1,heat(words[0])))))),lines:[w.text]}})}
  ctx.textAlign='center';ctx.textBaseline='alphabetic';positions.forEach((p,index)=>{if(style==='moles'||style==='fishing'){const now=Date.now(),t=now/1000,phase=(t+(hash(p.text)%4200)/1000)%4.2,prior=moleLastLikes.get(p.text)||0;const hit=(gameHitUntil.get(p.text)||0)>performance.now(),up=(phase<1.55)||hit;p.gameUp=up;gameTargetStates.set(p.text,up);if(style==='moles')drawMole(ctx,p,t,hit,up);else drawFishingFish(ctx,p,t,up,hit)}else{gameTargetStates.set(p.text,false);if(style==='stickers')drawSticker(ctx,p,Date.now()/1000);if(clouds)drawCloud(ctx,p)}let textSize=p.size;if(style==='stickers'){const r=Math.min(p.w,p.h)*.48;ctx.save();ctx.beginPath();ctx.arc(p.x,p.top+p.h*.5,r*.91,0,Math.PI*2);ctx.clip();ctx.font='700 '+textSize+'px '+p.font;const maxLine=Math.max(1,...p.lines.map(line=>ctx.measureText(line).width));textSize=Math.min(Math.max(textSize,r*.36),textSize*(r*1.48)/maxLine);ctx.font='700 '+textSize+'px '+p.font;}else{ctx.font='700 '+textSize+'px '+p.font;}const hue=(index*37+(Date.now()/90)%360)%360;if(!clouds&&motion!=='eco'){ctx.shadowColor=p.color;ctx.shadowBlur=style==='network'?18:style==='dna'||style==='atom'?15:12;const glow=ctx.createLinearGradient(p.x-p.size*2,p.y-p.size,p.x+p.size*2,p.y+p.size);glow.addColorStop(0,p.color);glow.addColorStop(.5,'hsl('+hue+' 95% 82%)');glow.addColorStop(1,p.color);ctx.fillStyle=glow}else{ctx.shadowBlur=0;ctx.fillStyle=p.color}p.lines.forEach((line,i)=>{ctx.lineWidth=Math.max(2,textSize*.075);ctx.strokeStyle=style==='stickers'?'#563c45':state.theme==='night'?'#18243a':'#fffdf5';ctx.strokeText(line,p.x,p.y+i*textSize*1.14);ctx.fillText(line,p.x,p.y+i*textSize*1.14)});if(style==='stickers')ctx.restore();ctx.shadowBlur=0;if(!clouds){const names=(p.participants||[]).map(x=>x.label).filter(Boolean).slice(0,3).join('、'),metaSize=Math.max(9,Math.min(12,p.size*.22)),bottom=p.top+p.h-5;ctx.save();ctx.font='700 '+metaSize+'px sans-serif';ctx.textBaseline='bottom';const pill=(text,x,align,color)=>{ctx.textAlign=align;const tw=ctx.measureText(text).width+12;ctx.fillStyle='rgba(35,42,50,.78)';ctx.beginPath();ctx.roundRect(x,bottom-metaSize-7,tw,metaSize+9,7);ctx.fill();ctx.fillStyle=color;ctx.fillText(text,align==='left'?x+6:x+tw-6,bottom)};if((p.likes||0)>0)pill('♥ '+p.likes,p.left+4,'left','#ff9bc7');if(names){const text=names+(p.participants?.length>3?'…':'');const maxW=Math.max(28,p.w*.48),clipped=ctx.measureText(text).width>maxW?text.slice(0,8)+'…':text,tw=ctx.measureText(clipped).width+12;pill(clipped,p.left+p.w-tw-4,'left','#e7f7ff')}ctx.restore()}});
  if((style==='moles'||style==='fishing')&&gameHitBannerUntil>performance.now()){ctx.save();const label=gameHitStyle==='moles'?'打中了！':gameHitStyle==='fishing'?'釣到了！':'挑戰成功！',sub=gameHitWord?'「'+gameHitWord+'」':'';ctx.textAlign='center';ctx.textBaseline='middle';const fs=Math.max(24,Math.min(54,W*.075));ctx.font='900 '+fs+'px sans-serif';ctx.lineWidth=7;ctx.strokeStyle='rgba(16,48,64,.88)';ctx.fillStyle=gameHitStyle==='moles'?'#fff06a':gameHitStyle==='fishing'?'#fff5a5':'#c9f7ff';ctx.shadowColor='#fff';ctx.shadowBlur=18;ctx.strokeText(label+' '+sub,W/2,H*.16);ctx.fillText(label+' '+sub,W/2,H*.16);ctx.restore()};let layer=canvas.parentElement.querySelector('.bubble-layer');if(!layer){layer=document.createElement('div');layer.setAttribute('aria-hidden','true');canvas.parentElement.append(layer)}layer.className='bubble-layer motion-'+motion;layer.hidden=!clouds||motion==='eco';canvas.style.opacity=layer.hidden?'1':'0';
  if(!layer.hidden){const old=new Map([...layer.children].map(n=>[n.dataset.word,n]));positions.forEach(p=>{let shell=old.get(p.text);const fresh=!shell;if(!shell){shell=document.createElement('div');shell.className='bubble-shell bubble-enter';shell.dataset.word=p.text;const entry=document.createElement('div');entry.className='bubble-entry';const sway=document.createElement('div');sway.className='bubble-sway';const label=document.createElement('span');label.className='bubble-label';const likes=document.createElement('small');likes.className='bubble-like-count';const names=document.createElement('small');names.className='bubble-participant-names';sway.append(label,likes,names);entry.append(sway);shell.append(entry);layer.append(shell)}old.delete(p.text);const entry=shell.children[0],sway=entry.children[0],label=sway.children[0],likes=sway.children[1],names=sway.children[2];Object.assign(shell.style,{left:p.left+'px',top:p.top+'px',width:p.w+'px',height:p.h+'px'});Object.assign(label.style,{fontFamily:p.font,fontSize:p.size+'px',fontWeight:'700',color:p.color});label.textContent=p.lines.join('\n');likes.textContent=p.likes?'👍 '+p.likes:'';names.textContent=(p.participants||[]).map(x=>x.label).join('、');names.hidden=!names.textContent;sway.style.backgroundImage='url("data:image/svg+xml,'+encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 210 120" preserveAspectRatio="none"><path d="'+CLOUD_PATH+'" fill="'+p.color+'" fill-opacity=".2"/></svg>')+'")';sway.style.setProperty('--sway-time',(4+hash(p.text)%40/10)+'s');sway.style.setProperty('--sway-delay',-(hash(p.text)%50/10)+'s');if(!fresh&&Number(shell.dataset.score)!==p.score){shell.classList.remove('bubble-enter','bubble-pulse');void shell.offsetWidth;shell.classList.add('bubble-pulse')}shell.dataset.score=p.score;});old.forEach(n=>n.remove());}else{layer.replaceChildren()}
- gamePositions=positions.filter(p=>style==='moles'||style==='fishing').map(p=>({text:p.text,x:p.x,y:p.y,left:p.left,top:p.top,w:p.w,h:p.h,up:!!p.gameUp}));canvas.setAttribute('aria-label','文字雲：'+words.map(w=>w.text+'，投稿 '+w.count+' 次，讚同 '+(w.likes||0)+' 次').join('、'));canvas.dataset.shown=positions.length;canvas.dataset.total=state.words.length;if(style==='moles'||style==='fishing'){moleLastLikes=new Map(positions.map(p=>[p.text,p.likes||0]));if(!moleFrame)moleFrame=requestAnimationFrame(function tick(){moleFrame=0;if(['moles','fishing'].includes(state?.style)&&mode!=='history'&&mode!=='my-history')paint()})}else if(moleFrame){cancelAnimationFrame(moleFrame);moleFrame=0}
+ gamePositions=positions.map(p=>({text:p.text,x:p.x,y:p.y,left:p.left,top:p.top,w:p.w,h:p.h,up:['moles','fishing'].includes(style)?!!p.gameUp:true}));canvas.setAttribute('aria-label','文字雲：'+words.map(w=>w.text+'，投稿 '+w.count+' 次，讚同 '+(w.likes||0)+' 次').join('、'));canvas.dataset.shown=positions.length;canvas.dataset.total=state.words.length;if(style==='moles'||style==='fishing'){moleLastLikes=new Map(positions.map(p=>[p.text,p.likes||0]));if(!moleFrame)moleFrame=requestAnimationFrame(function tick(){moleFrame=0;if(['moles','fishing'].includes(state?.style)&&mode!=='history'&&mode!=='my-history')paint()})}else if(moleFrame){cancelAnimationFrame(moleFrame);moleFrame=0}
  if(mode==='host'&&state.words.length>positions.length)$('#statusLabel').textContent=(state.open?'● 開放投稿中':'Ⅱ 已暫停收件')+' · 顯示 '+positions.length+' 個熱門詞';
 }
 let resizeTimer;window.addEventListener('resize',()=>{clearTimeout(resizeTimer);resizeTimer=setTimeout(paint,120)});
@@ -445,7 +445,32 @@ if(mode==='host'){
  const openArchive=async id=>{activeArchiveId=id;activeArchiveWasInteractive=false;cards.hidden=true;await refreshArchiveDetail();if(!activeArchiveId)return;if(archiveMonitorTimer)clearInterval(archiveMonitorTimer);archiveMonitorTimer=setInterval(refreshArchiveDetail,3000)};
  (async()=>{try{const response=await api('/api/my/history?limit=50'),page=await response.json();if(page.disabled){status.textContent='主持人目前已關閉個人歷史功能。';return}if(!page.items.length){status.textContent='目前沒有可顯示的歷史互動紀錄。';return}status.textContent='找到 '+page.items.length+' 筆歷史互動。選擇主題即可觀看封存成果及即時互動畫面。';cards.replaceChildren();page.items.forEach(item=>{const card=document.createElement('button');card.className='history-card';card.type='button';card.innerHTML='<strong>'+esc(item.title)+'</strong><span class="archive-card-question">'+esc(item.question)+'</span><span>'+esc(new Date(item.createdAt).toLocaleString())+'</span><small>我的投稿 '+item.submissions+' · 我的讚同 '+item.likes+' · '+(item.accessMode==='open'?'開放互動':item.accessMode==='view'?'僅供查看':'不開放')+'</small>';card.onclick=()=>openArchive(item.id);cards.append(card)})}catch(e){status.textContent=e.message}})();
 }else if(mode==='join'){
- const room=participantRoom;$('#joinCanvas').addEventListener('click',async event=>{if(!state||!['moles','fishing'].includes(state.style))return;const rect=event.currentTarget.getBoundingClientRect(),x=event.clientX-rect.left,y=event.clientY-rect.top;const target=[...gamePositions].reverse().find(p=>x>=p.left&&x<=p.left+p.w&&y>=p.top&&y<=p.top+p.h);if(!target)return;if(!target.up){toast(state.style==='moles'?'地鼠還沒露頭，請點下方按讚按鈕。':'魚還沒浮上水面，請點下方按讚按鈕。');return}if((state.liked||[]).includes(target.text)||pendingLikes.has(target.text))return;pendingLikes.add(target.text);try{await api('/api/like',{method:'POST',body:{text:target.text,room,round:state.round,hit:true,gameStyle:state.style}});gameHitUntil.set(target.text,performance.now()+3200);gameHitWord=target.text;gameHitStyle=state.style;gameHitBannerUntil=performance.now()+3200;toast(state.style==='moles'?'敲中「'+target.text+'」！':'釣到「'+target.text+'」！');await refresh()}catch(e){toast(e.message)}finally{pendingLikes.delete(target.text)}});const myHistoryLink=$('#myHistoryLink');if(myHistoryLink)myHistoryLink.href=API_ROOT+'/my-history';
+ const room=participantRoom;$('#joinCanvas').addEventListener('click',async event=>{
+  if(!state)return;
+  const canvas=event.currentTarget,rect=canvas.getBoundingClientRect(),x=(event.clientX-rect.left)*(canvas.clientWidth/Math.max(1,rect.width)),y=(event.clientY-rect.top)*(canvas.clientHeight/Math.max(1,rect.height));
+  const target=[...gamePositions].reverse().find(p=>x>=p.left&&x<=p.left+p.w&&y>=p.top&&y<=p.top+p.h);
+  if(!target)return;
+  const gameMode=['moles','fishing'].includes(state.style);
+  if(gameMode&&!target.up){toast(state.style==='moles'?'地鼠還沒露頭，請點已露頭的地鼠。':'魚還沒浮上水面，請點已浮起的魚。');return}
+  if(!state.open||!ready||!connected){toast('目前暫停互動，暫時不能按讚。');return}
+  if((state.liked||[]).includes(target.text)||pendingLikes.has(target.text))return;
+  pendingLikes.add(target.text);
+  try{
+   await api('/api/like',{method:'POST',body:{text:target.text,room,round:state.round,hit:gameMode&&target.up,gameStyle:gameMode?state.style:''}});
+   if(gameMode){
+    gameHitUntil.set(target.text,performance.now()+3200);gameHitWord=target.text;gameHitStyle=state.style;gameHitBannerUntil=performance.now()+3200;
+    toast(state.style==='moles'?'敲中「'+target.text+'」！':'釣到「'+target.text+'」！');
+   }else{
+    toast('已直接讚同「'+target.text+'」！');
+    const cloud=canvas.parentElement;
+    const marker=document.createElement('span');marker.className='direct-like-feedback';marker.textContent='👍';
+    marker.style.left=(x/Math.max(1,canvas.clientWidth)*100)+'%';marker.style.top=(y/Math.max(1,canvas.clientHeight)*100)+'%';cloud.append(marker);
+    setTimeout(()=>marker.remove(),950);
+   }
+   await refresh();
+  }catch(e){toast(e.message)}
+  finally{pendingLikes.delete(target.text);renderEndorsements(true)}
+ });const myHistoryLink=$('#myHistoryLink');if(myHistoryLink)myHistoryLink.href=API_ROOT+'/my-history';
  api('/api/join').then(r=>r.json()).then(v=>{ready=new URL(v.join).searchParams.get('room')===room;updateSubmit();if(state)renderEndorsements();if(!ready){$('#submitStatus').textContent='活動連結已失效，請重新掃描現場 QR Code。';$('#submitStatus').className='submit-status error'}}).catch(()=>setConnection(false));
  syncParticipantName();askParticipantName();$('#changeParticipantName').onclick=()=>askParticipantName(true);$('#feedbackNotificationsButton').onclick=openFeedbackNotifications;$('#feedbackNotificationsClose').onclick=()=>$('#feedbackNotificationsDialog').close();$('#feedbackThreadClose').onclick=()=>$('#feedbackThreadDialog').close();$('#feedbackComposeCancel').onclick=()=>$('#feedbackComposeDialog').close();$('#feedbackComposeForm').onsubmit=async e=>{e.preventDefault();const body=$('#feedbackComposeBody').value.trim(),word=feedbackTargetWord,question=feedbackTargetQuestion;if(!body){$('#feedbackComposeStatus').textContent='請先寫下回饋內容。';return}if(!word){$('#feedbackComposeStatus').textContent='找不到回饋對象，請關閉視窗後重新點選「回饋」。';return}if([...body].length>300){$('#feedbackComposeStatus').textContent='回饋內容最多 300 字。';return}const submit=$('#feedbackComposeSubmit');if(submit.disabled)return;submit.disabled=true;submit.textContent='公開中…';$('#feedbackComposeStatus').textContent='正在安全送出，請稍候…';try{await api('/api/feedback',{method:'POST',body:{word,body,question,label:participantName||'匿名'}});$('#feedbackComposeDialog').close();$('#feedbackComposeBody').value='';toast('回饋已公開，原始投稿者會收到通知。')}catch(err){$('#feedbackComposeStatus').textContent='尚未成功公開：'+err.message+'。文字已保留，請確認連線後再試一次。'}finally{submit.disabled=false;submit.textContent='公開回饋'}};$('#participantNameForm').onsubmit=e=>{const value=$('#participantNameInput').value.trim();if(e.submitter&&e.submitter.id==='skipParticipantName'){participantName='';localStorage.removeItem(participantStorageKey);}else if(value&&!validParticipantName(value)){e.preventDefault();toast('小名請輸入 1～5 個中英文或數字');return;}else if(value){participantName=value;localStorage.setItem(participantStorageKey,value);}else{participantName='';localStorage.removeItem(participantStorageKey);}sessionStorage.setItem('junba-name-prompted-v2:'+participantRoom,'1');syncParticipantName();};$('#submitForm').onsubmit=async e=>{
   e.preventDefault();if(!state||!ready||submitting)return;submitting=true;const currentRound=state.round;const b=$('#submitWords');b.disabled=true;b.textContent='送出中…';$('#submitStatus').textContent='';
@@ -470,3 +495,130 @@ if(typeof ResizeObserver!=="undefined"){const obs=new ResizeObserver(()=>{clearT
 if(mode==="join")$("#phoneCloud").ontoggle=()=>setTimeout(paint,0);
 
 let loadedAppearanceFont='';function ensureCloudFont(){if(!state||!document.fonts||!document.fonts.load)return;const font=state.font||'round';if(loadedAppearanceFont===font)return;loadedAppearanceFont=font;const names=font==='mixed'?['JunbaRound','JunbaSerif']:font==='round'?['JunbaRound']:font==='serif'?['JunbaSerif']:[];Promise.all(names.map(n=>document.fonts.load('700 24px '+n))).then(()=>paint()).catch(()=>{});}if(document.fonts)ensureCloudFont();
+
+
+/* Immersive word-cloud view: host and participant modes with meaningful controls. */
+(()=>{
+ if(!['host','join'].includes(mode))return;
+ const host=mode==='host';
+ const cloud=document.querySelector(host?'.cloud-stage':'.participant-cloud');
+ if(!cloud)return;
+ const entry=document.createElement('button');
+ entry.type='button';entry.className='secondary immersive-entry';
+ entry.textContent='⛶ 沉浸式瀏覽';
+ if(host){
+  const actions=document.querySelector('.preview-toolbar .toolbar-actions');
+  if(actions)actions.append(entry);
+ }else{
+  const summary=document.querySelector('#phoneCloud summary');
+  if(summary)summary.insertAdjacentElement('afterend',entry);
+ }
+ const overlay=document.createElement('section');
+ overlay.className='immersive-overlay';overlay.hidden=true;
+ overlay.setAttribute('aria-label','沉浸式文字雲瀏覽');
+ const topic=document.createElement('header');topic.className='immersive-topic';
+ const topicLabel=document.createElement('span');topicLabel.className='immersive-topic-label';topicLabel.textContent='目前活動主題';
+ const topicText=document.createElement('strong');topicText.className='immersive-topic-text';topicText.textContent=state?.question||'尚未設定活動主題';
+ topic.append(topicLabel,topicText);
+ const content=document.createElement('div');content.className='immersive-cloud-content';
+ const controls=document.createElement('div');controls.className='immersive-controls';
+ const title=document.createElement('strong');title.className='immersive-title';title.textContent='峻爸文字雲 · 簡易控制';
+ const modeA=document.createElement('button');modeA.type='button';modeA.className='immersive-mode';modeA.textContent='純文字雲';
+ const modeB=document.createElement('button');modeB.type='button';modeB.className='immersive-mode';modeB.textContent='簡易控制';
+ const motionBtn=document.createElement('button');motionBtn.type='button';motionBtn.className='immersive-action';motionBtn.textContent='Ⅱ 暫停動態';
+ const namesBtn=document.createElement('button');namesBtn.type='button';namesBtn.className='immersive-action';namesBtn.textContent='隱藏小名';
+ const likesBtn=document.createElement('button');likesBtn.type='button';likesBtn.className='immersive-action';likesBtn.textContent='隱藏讚數';
+ const zoomOut=document.createElement('button');zoomOut.type='button';zoomOut.textContent='－';
+ const zoomLabel=document.createElement('span');zoomLabel.className='immersive-zoom-label';
+ const zoomIn=document.createElement('button');zoomIn.type='button';zoomIn.textContent='＋';
+ const exit=document.createElement('button');exit.type='button';exit.className='immersive-exit';exit.textContent='退出瀏覽 ✕';
+ const reveal=document.createElement('button');reveal.type='button';reveal.className='immersive-reveal';reveal.textContent='顯示控制';
+ controls.append(title,modeA,modeB,motionBtn,namesBtn,likesBtn,zoomOut,zoomLabel,zoomIn,exit);
+ overlay.append(topic,content,controls,reveal);document.body.append(overlay);
+
+ // Mobile orientation guide shown before entering immersive view.
+ const guide=document.createElement('section');guide.className='immersive-orientation-guide';guide.hidden=true;
+ const guideCard=document.createElement('div');guideCard.className='immersive-orientation-card';
+ const guideIcon=document.createElement('div');guideIcon.className='immersive-rotate-icon';guideIcon.textContent='↻';
+ const guideTitle=document.createElement('h2');guideTitle.textContent='建議將手機轉為橫向';
+ const guideText=document.createElement('p');guideText.textContent='橫向畫面能顯示更多文字，閱讀大量投稿更清楚。請先旋轉手機，再開始沉浸式瀏覽。';
+ const guideStart=document.createElement('button');guideStart.type='button';guideStart.className='immersive-start-landscape';guideStart.textContent='我已轉成橫向，開始瀏覽';guideStart.disabled=true;
+ const guidePortrait=document.createElement('button');guidePortrait.type='button';guidePortrait.className='immersive-keep-portrait';guidePortrait.textContent='先以直向模式瀏覽';
+ const guideCancel=document.createElement('button');guideCancel.type='button';guideCancel.className='immersive-guide-cancel';guideCancel.textContent='取消';
+ guideCard.append(guideIcon,guideTitle,guideText,guideStart,guidePortrait,guideCancel);guide.append(guideCard);document.body.append(guide);
+
+ let placeholder=null,zoom=1,nativeFullscreen=false,motionOn=true,namesOn=true,likesOn=true,portraitFallback=false;
+ const isMobile=()=>window.matchMedia('(max-width: 700px)').matches;
+ const isPortrait=()=>window.matchMedia('(orientation: portrait)').matches;
+ const updateGuide=()=>{guideStart.disabled=isPortrait();guideStart.textContent=isPortrait()?'請旋轉手機至橫向':'我已轉成橫向，開始瀏覽';};
+ const showGuide=()=>{updateGuide();guide.hidden=false;document.body.classList.add('immersive-guide-active');};
+ const hideGuide=()=>{guide.hidden=true;document.body.classList.remove('immersive-guide-active');};
+ const updateTopic=()=>{topicText.textContent=state?.question||'尚未設定活動主題';};
+ const updateZoom=()=>{cloud.style.setProperty('--immersive-zoom',String(zoom));zoomLabel.textContent=Math.round(zoom*100)+'%';};
+ const updateToggles=()=>{
+  overlay.classList.toggle('immersive-motion-on',motionOn);
+  overlay.classList.toggle('immersive-names-on',namesOn);
+  overlay.classList.toggle('immersive-likes-on',likesOn);
+  motionBtn.textContent=motionOn?'Ⅱ 暫停動態':'▶ 開啟動態';
+  namesBtn.textContent=namesOn?'隱藏小名':'顯示小名';
+  likesBtn.textContent=likesOn?'隱藏讚數':'顯示讚數';
+ };
+ const setMode=simple=>{
+  overlay.classList.toggle('show-controls',simple);
+  overlay.classList.toggle('pure-cloud',!simple);
+  overlay.classList.toggle('simple-controls',simple);
+  title.textContent=simple?'峻爸文字雲 · 簡易控制':'峻爸文字雲 · 純文字雲';
+  modeA.setAttribute('aria-pressed',String(!simple));
+  modeB.setAttribute('aria-pressed',String(simple));
+  reveal.textContent='顯示控制';
+ };
+ const open=async()=>{
+  if(!overlay.hidden)return;
+  placeholder=document.createComment('immersive-cloud-origin');cloud.parentNode.insertBefore(placeholder,cloud);
+  content.append(cloud);overlay.hidden=false;document.body.classList.add('immersive-active');updateTopic();
+  overlay.classList.toggle('immersive-portrait-layout',portraitFallback);
+  zoom=1;motionOn=true;namesOn=true;likesOn=true;updateZoom();updateToggles();setMode(!portraitFallback);
+  if(!portraitFallback&&overlay.requestFullscreen){try{await overlay.requestFullscreen();nativeFullscreen=true}catch{nativeFullscreen=false}}
+  if(!portraitFallback&&isMobile()&&screen.orientation&&screen.orientation.lock){
+   try{await screen.orientation.lock('landscape')}catch{ /* Keep the visible orientation guide as the fallback. */ }
+  }
+  setTimeout(()=>{if(typeof paint==='function')paint()},100);
+ };
+ const close=async()=>{
+  if(overlay.hidden)return;
+  if(placeholder&&placeholder.parentNode){placeholder.parentNode.insertBefore(cloud,placeholder);placeholder.remove();}
+  placeholder=null;overlay.hidden=true;document.body.classList.remove('immersive-active');
+  if(nativeFullscreen&&document.fullscreenElement===overlay){try{await document.exitFullscreen()}catch{}}
+  nativeFullscreen=false;portraitFallback=false;overlay.classList.remove('immersive-portrait-layout');
+  cloud.style.removeProperty('--immersive-zoom');
+  if(screen.orientation&&screen.orientation.unlock){try{screen.orientation.unlock()}catch{}}
+  setTimeout(()=>{if(typeof paint==='function')paint()},80);
+ };
+ entry.addEventListener('click',()=>{
+  portraitFallback=false;
+  if(isMobile()&&isPortrait()){showGuide();return;}
+  open();
+ });
+ guideStart.addEventListener('click',()=>{if(isPortrait()){updateGuide();return;}hideGuide();portraitFallback=false;open();});
+ guidePortrait.addEventListener('click',()=>{hideGuide();portraitFallback=true;open();});
+ guideCancel.addEventListener('click',hideGuide);
+ window.addEventListener('orientationchange',updateGuide);
+ window.addEventListener('resize',()=>{if(!guide.hidden)updateGuide();if(!overlay.hidden&&typeof paint==='function')paint()});
+ modeA.addEventListener('click',()=>setMode(false));
+ modeB.addEventListener('click',()=>setMode(true));
+ reveal.addEventListener('click',()=>setMode(true));
+ // Tap anywhere outside the control bar to hide/show controls.
+ overlay.addEventListener('click',event=>{
+  if(event.target.closest('.immersive-controls,.immersive-reveal'))return;
+  setMode(!overlay.classList.contains('show-controls'));
+ });
+ motionBtn.addEventListener('click',()=>{motionOn=!motionOn;updateToggles();});
+ namesBtn.addEventListener('click',()=>{namesOn=!namesOn;updateToggles();});
+ likesBtn.addEventListener('click',()=>{likesOn=!likesOn;updateToggles();});
+ zoomOut.addEventListener('click',()=>{zoom=Math.max(.65,Math.round((zoom-.1)*10)/10);updateZoom();});
+ zoomIn.addEventListener('click',()=>{zoom=Math.min(1.7,Math.round((zoom+.1)*10)/10);updateZoom();});
+ exit.addEventListener('click',close);
+ document.addEventListener('keydown',event=>{if(event.key==='Escape'&&!overlay.hidden&&!nativeFullscreen)close();});
+ document.addEventListener('fullscreenchange',()=>{if(nativeFullscreen&&!document.fullscreenElement&&!overlay.hidden){nativeFullscreen=false;close();}});
+ window.addEventListener('resize',()=>{if(!overlay.hidden&&typeof paint==='function')paint()});
+})();
