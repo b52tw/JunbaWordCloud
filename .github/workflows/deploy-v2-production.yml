@@ -47,8 +47,10 @@ jobs:
       - name: Provision V2 activity management code from protected staging secret
         env:
           ACTIVITY_CODE: ${{ secrets.STAGING_ACTIVITY_CODE }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
         run: |
           test -n "$ACTIVITY_CODE" || (echo "Missing GitHub environment secret STAGING_ACTIVITY_CODE" && exit 1)
+          test -n "$CLOUDFLARE_API_TOKEN" || (echo "Missing Cloudflare deployment token" && exit 1)
           printf '%s' "$ACTIVITY_CODE" | grep -Eq '^[0-9]{4}$' || (echo "STAGING_ACTIVITY_CODE must be exactly 4 digits" && exit 1)
           printf '%s' "$ACTIVITY_CODE" | npx wrangler secret put ACTIVITY_CODE --name junba-wordcloud-v2
 
